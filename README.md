@@ -4,7 +4,7 @@
 
 纯静态网页 + 一个 macOS 菜单栏应用。**所有数据只存在你自己的浏览器或本机，不联网、不上传、没有账号。**
 
-[**在线体验 →**](https://yinyaocool-sys.github.io/salary-mint/) · [**下载 macOS 版 →**](https://github.com/yinyaocool-sys/salary-mint/releases/latest)
+[**在线体验 →**](https://yinbro.github.io/salary-mint/) · [**下载 macOS 版 →**](https://github.com/yinbro/salary-mint/releases/latest)
 
 ![网页版（日铸）](docs/screenshots/web-hero.jpg)
 
@@ -24,13 +24,13 @@
 
 ## 在线使用
 
-打开 [yinyaocool-sys.github.io/salary-mint](https://yinyaocool-sys.github.io/salary-mint/)，第一次会走三步初始化（薪酬结构 → 班次 → 默认视角）。数据存在浏览器 localStorage，换设备或清缓存会丢，重要配置可用设置里的「导出配置」备份。
+打开 [yinbro.github.io/salary-mint](https://yinbro.github.io/salary-mint/)，第一次会走三步初始化（薪酬结构 → 班次 → 默认视角）。数据存在浏览器 localStorage，换设备或清缓存会丢，重要配置可用设置里的「导出配置」备份。
 
 ## macOS 版
 
 菜单栏常驻今日进账，点开是完整账本。支持 macOS 13 及以上，Apple Silicon 与 Intel 通用。
 
-**安装**：从 [Releases](https://github.com/yinyaocool-sys/salary-mint/releases/latest) 下载 `SalaryMint-1.0.0-macOS.zip`，解压后把「薪水铸币厂.app」拖进「应用程序」。
+**安装**：从 [Releases](https://github.com/yinbro/salary-mint/releases/latest) 下载 `SalaryMint-1.0.0-macOS.zip`，解压后把「薪水铸币厂.app」拖进「应用程序」。
 
 **首次打开**：应用没有做 Apple 公证（省开发者年费），系统会拦一次。右键点击应用选「打开」，或执行：
 
@@ -103,8 +103,8 @@ docs/screenshots/    README 用图
 
 It ships as a zero-dependency static site and a macOS menu bar app. Everything stays local — no backend, no analytics, no account, no network calls.
 
-- **Try it online**: https://yinyaocool-sys.github.io/salary-mint/
-- **Download for macOS** (13+, universal binary): [Releases](https://github.com/yinyaocool-sys/salary-mint/releases/latest). The app is ad-hoc signed only, so right-click → Open on first launch, or run `xattr -dr com.apple.quarantine /Applications/薪水铸币厂.app`.
+- **Try it online**: https://yinbro.github.io/salary-mint/
+- **Download for macOS** (13+, universal binary): [Releases](https://github.com/yinbro/salary-mint/releases/latest). The app is ad-hoc signed only, so right-click → Open on first launch, or run `xattr -dr com.apple.quarantine /Applications/薪水铸币厂.app`.
 - **Build**: serve `web/` with any static server, or run `bash macos/build.sh` (requires Xcode Command Line Tools).
 
 Tax and social-insurance figures follow Shanghai rules and are sourced in-app under "VII 口径与来源"; they are estimates, not professional advice.

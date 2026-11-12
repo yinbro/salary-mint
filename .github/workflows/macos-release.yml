@@ -54,4 +54,4 @@ jobs:
             未做 Apple 公证，首次打开请右键点击应用选择「打开」，或执行：
             `xattr -dr com.apple.quarantine /Applications/薪水铸币厂.app`
 
-            在线体验：https://yinyaocool-sys.github.io/salary-mint/
+            在线体验：https://yinbro.github.io/salary-mint/
