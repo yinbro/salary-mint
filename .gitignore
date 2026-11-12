@@ -1,0 +1,10 @@
+.DS_Store
+__pycache__/
+*.pyc
+
+# macOS 构建产物
+macos/build/
+macos/dist/
+*.pkg
+*.zip
+*.dmg

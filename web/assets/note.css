@@ -1,0 +1,378 @@
+/* ============================================================
+   钞券头版 · Banknote Recto/Verso + 机械翻页牌
+   ============================================================ */
+
+/* ---------- 券面舞台 ---------- */
+.stage{ padding:38px 0 6px; }
+@media (max-width:640px){ .stage{ padding:22px 0 4px; } }
+
+.note-holder{ perspective:2200px; }
+.note{
+  position:relative; width:100%; aspect-ratio:2.06/1;
+  transform-style:preserve-3d; transition:transform .82s cubic-bezier(.6,.02,.24,1);
+}
+.note.flipped{ transform:rotateY(180deg); }
+@media (prefers-reduced-motion: reduce){ .note{ transition:none; } }
+
+.face{
+  position:absolute; inset:0; backface-visibility:hidden; overflow:hidden;
+  border-radius:5px;
+  background:
+    linear-gradient(158deg, var(--paper-hi) 0%, var(--paper) 34%, var(--paper-2) 78%, var(--paper-3) 100%);
+  box-shadow:
+    0 0 0 1px var(--line-3),
+    0 1px 0 rgba(255,255,255,.65) inset,
+    0 -1px 0 rgba(22,35,58,.07) inset,
+    0 18px 44px -18px rgba(22,35,58,.34),
+    0 3px 10px -4px rgba(22,35,58,.16);
+}
+html[data-theme="night"] .face{
+  background:linear-gradient(158deg,#191E27 0%,#12161D 40%,#0D1015 100%);
+  box-shadow:0 0 0 1px var(--line-3), 0 18px 48px -20px rgba(0,0,0,.8);
+}
+.face.verso{ transform:rotateY(180deg); }
+
+/* 券面网底（防复印细网，纯 CSS 可无损缩放） */
+.face::before{
+  content:''; position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:
+    repeating-linear-gradient(52deg, var(--line-2) 0 .5px, transparent .5px 5px),
+    repeating-linear-gradient(-52deg, var(--line-2) 0 .5px, transparent .5px 5px);
+}
+/* 彩虹印（虹彩防伪带） */
+.face::after{
+  content:''; position:absolute; inset:0; pointer-events:none; opacity:.30; mix-blend-mode:multiply;
+  background:linear-gradient(104deg,
+    transparent 8%, rgba(160,110,60,.16) 22%, transparent 33%,
+    rgba(60,110,140,.14) 47%, transparent 58%,
+    rgba(140,120,60,.14) 72%, transparent 84%);
+}
+html[data-theme="night"] .face::after{ mix-blend-mode:screen; opacity:.22; }
+
+/* 雕版图层容器 */
+.eng{ position:absolute; inset:0; pointer-events:none; }
+.eng svg{ position:absolute; overflow:visible; }
+.eng path{ fill:none; vector-effect:non-scaling-stroke; }
+.eng .gl path{ stroke:var(--intag); stroke-width:.5; opacity:.5; }
+.eng .gl2 path{ stroke:var(--gold); stroke-width:.5; opacity:.42; }
+.eng .gl3 path{ stroke:var(--engrave); stroke-width:.5; opacity:.34; }
+.eng .rel path{ stroke:var(--intag); stroke-width:.55; opacity:.44; }
+.eng .lathe path{ stroke:var(--gold); stroke-width:.42; opacity:.30; }
+.eng text.mt{
+  font-family:var(--lat); font-size:3.6px; letter-spacing:.18em;
+  fill:var(--ink-3); opacity:.72;
+}
+
+/* 内框双线 */
+.frame{
+  position:absolute; inset:13px; border:1px solid var(--line-3); border-radius:3px; pointer-events:none;
+}
+.frame::before{
+  content:''; position:absolute; inset:4px; border:.5px solid var(--line); border-radius:2px;
+}
+
+/* 安全线 */
+.thread{
+  position:absolute; top:0; bottom:0; width:9px; left:29%; pointer-events:none; opacity:.5;
+  background:repeating-linear-gradient(180deg,
+    rgba(180,150,80,.42) 0 5px, rgba(120,150,170,.30) 5px 10px);
+  mix-blend-mode:multiply;
+  box-shadow:0 0 0 .5px rgba(22,35,58,.10);
+}
+html[data-theme="night"] .thread{ mix-blend-mode:screen; opacity:.38; }
+
+/* 水印 */
+.wm{
+  position:absolute; pointer-events:none; user-select:none;
+  font-family:var(--serif); font-weight:900; color:var(--ink);
+  opacity:.055; line-height:1;
+}
+html[data-theme="night"] .wm{ opacity:.075; }
+/* 水印字号写在 CSS 里，窄屏才能整体收小（行内 style 无法被媒体查询覆盖） */
+.wm.r{ right:6.5%; bottom:13%; font-size:132px; }
+.wm.v{ left:6%; top:14%; font-size:120px; }
+@media (max-width:760px){
+  .wm.r{ right:5%; bottom:9%; font-size:86px; }
+  .wm.v{ font-size:78px; }
+}
+
+/* 变色油墨块 OVI */
+/* 变色油墨块：边缘要干净利落，糊开就不像防伪特征、只像脏点 */
+.ovi{
+  position:absolute; pointer-events:none; border-radius:50%;
+  background:conic-gradient(from 200deg, #B99248, #6E8E86, #A9803C, #4E6E8C, #B99248);
+  opacity:.58; mix-blend-mode:multiply;
+  mask:radial-gradient(circle at 50% 50%, #000 66%, rgba(0,0,0,.35) 78%, transparent 82%);
+  -webkit-mask:radial-gradient(circle at 50% 50%, #000 66%, rgba(0,0,0,.35) 78%, transparent 82%);
+  box-shadow:0 0 0 .5px var(--line-3);
+}
+html[data-theme="night"] .ovi{ mix-blend-mode:screen; opacity:.6; }
+/* 位置写进 CSS，窄屏才能整体收掉 */
+.ovi.a{ left:38px; top:calc(50% - 17px); width:34px; height:34px; }
+
+/* ---------- 券面内容（HTML 层） ---------- */
+/* 安全印区口径（改动前务必看这段）：
+   雕版层四角车花占 --ci 到 --ci+--cs，底部微缩带占 H-46–H-36，
+   上下编织带占 15–33px，左右编织带占 15–33px。
+   .note-ui 的横向内边距必须 > --ci+--cs，底部必须 > 46px，否则文字会压在车花和微缩带上。 */
+.note{ --cs:72px; --ci:10px; --bs:300px; }
+.eng svg.cnr{ width:var(--cs); height:var(--cs); }
+/* 大车花：券面落在翻页牌右侧空白区，券背居中 */
+.eng svg.big{
+  width:var(--bs); height:var(--bs);
+  top:calc(50% - var(--bs)/2); left:calc(100% - var(--bs) - 66px);
+}
+.eng svg.big.mid{ left:calc(50% - var(--bs)/2); }
+
+.eng svg.cnr.c0{ left:var(--ci);  top:var(--ci); }
+.eng svg.cnr.c1{ right:var(--ci); top:var(--ci); }
+.eng svg.cnr.c2{ left:var(--ci);  bottom:var(--ci); }
+.eng svg.cnr.c3{ right:var(--ci); bottom:var(--ci); }
+
+.note-ui{
+  position:absolute; inset:0; padding:38px 88px 56px;
+  display:grid; grid-template-columns:minmax(0,31%) minmax(0,1fr);
+  grid-template-rows:auto 1fr auto; gap:0 26px;
+}
+@media (max-width:900px){
+  .note{ --cs:60px; }
+  .note-ui{ padding:30px 76px 52px; }
+}
+
+.nu-tl{ grid-column:1/2; grid-row:1/2; }
+.nu-tr{ grid-column:2/3; grid-row:1/2; display:flex; justify-content:flex-end; align-items:flex-start; }
+.nu-l{ grid-column:1/2; grid-row:2/3; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+.nu-r{ grid-column:2/3; grid-row:2/3; display:flex; flex-direction:column; justify-content:center; gap:12px; min-width:0; }
+.nu-bl{ grid-column:1/2; grid-row:3/4; }
+.nu-br{ grid-column:2/3; grid-row:3/4; display:flex; justify-content:flex-end; align-items:flex-end; gap:20px; }
+
+.bank{ display:flex; align-items:center; gap:10px; }
+.bank .sealbox{ width:34px; height:34px; flex:none; }
+.bank h1{
+  margin:0; font-family:var(--serif); font-weight:900; font-size:19px; letter-spacing:.10em; line-height:1.2;
+}
+.bank .en{
+  font-family:var(--lat); font-size:9.5px; letter-spacing:.30em; text-transform:uppercase;
+  color:var(--ink-3); display:block; margin-top:1px; white-space:nowrap;
+}
+@media (max-width:900px){ .bank h1{ font-size:16px; } }
+
+.serial{
+  font-family:var(--mono); font-size:12.5px; letter-spacing:.20em; color:var(--press);
+  font-weight:500; white-space:nowrap;
+}
+.serial.b{ font-size:11px; opacity:.85; }
+
+/* 左侧浮雕勋章 */
+.medal{ position:relative; width:min(180px,90%); aspect-ratio:1; display:grid; place-items:center; }
+#engMedal path{ fill:none; vector-effect:non-scaling-stroke; }
+#engMedal .rel path{ stroke:var(--intag); stroke-width:.55; opacity:.44; }
+#engMedal .lathe path{ stroke:var(--gold); stroke-width:.42; opacity:.34; }
+#engMedal .gl3 path{ stroke:var(--engrave); stroke-width:.5; opacity:.32; }
+.medal .zh{
+  position:relative; font-family:var(--serif); font-weight:900; font-size:60px; color:var(--intag);
+  opacity:.80; text-shadow:0 1px 0 rgba(255,255,255,.55);
+}
+html[data-theme="night"] .medal .zh{ text-shadow:none; opacity:.9; }
+.medal-cap{
+  margin-top:8px; font-size:10.5px; color:var(--ink-3); letter-spacing:.14em; line-height:1.7; max-width:22ch;
+}
+
+/* 面额区 */
+.denom-k{ display:flex; align-items:center; gap:10px; }
+.denom-k .kl{ font-family:var(--lat); font-size:11px; letter-spacing:.32em; text-transform:uppercase; color:var(--ink-3); }
+.denom-k .st{
+  font-family:var(--sans); font-size:11px; letter-spacing:.14em; padding:1px 7px;
+  border:1px solid var(--line-3); border-radius:2px; color:var(--ink-2);
+}
+.denom-k .st.live{ color:var(--engrave); border-color:var(--engrave); }
+.denom-k .st.live::before{
+  content:''; width:5px; height:5px; border-radius:50%; background:var(--engrave);
+  display:inline-block; margin-right:5px; vertical-align:1px; animation:bp 1.6s ease-in-out infinite;
+}
+@keyframes bp{ 0%,100%{opacity:1} 50%{opacity:.25} }
+
+.denom-row{ display:flex; align-items:flex-end; gap:10px; flex-wrap:nowrap; min-width:0; }
+.cur{
+  font-family:var(--serif); font-weight:900; font-size:34px; line-height:1; color:var(--ink);
+  padding-bottom:6px; flex:none;
+}
+.note-meta{ display:flex; flex-wrap:wrap; gap:6px 18px; }
+.note-meta .mi{ display:flex; flex-direction:column; }
+.note-meta .mi b{
+  font-family:var(--mono); font-size:14px; font-weight:500; font-variant-numeric:tabular-nums; letter-spacing:-.01em;
+}
+.note-meta .mi span{ font-family:var(--lat); font-size:9.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--ink-4); }
+
+/* 左下：担保语 + 冠字号（原微缩行与雕版微缩带重复，已去掉）
+   注意别用 .tag，base.css 里 .tag 是带边框的 pill，会凭空多一个框 */
+.nu-bl .guar{
+  font-family:var(--serif); font-size:10.5px; letter-spacing:.16em;
+  color:var(--ink-3); white-space:nowrap;
+}
+.nu-bl .serial{ margin-top:5px; }
+
+.sig{ text-align:right; }
+.sig .nm{
+  font-family:var(--lat); font-style:italic; font-size:16px; color:var(--intag);
+  border-bottom:.5px solid var(--line-3); padding-bottom:2px; display:inline-block; min-width:96px; text-align:center;
+}
+.sig .rl{ font-family:var(--lat); font-size:8.5px; letter-spacing:.26em; text-transform:uppercase; color:var(--ink-4); margin-top:3px; }
+
+/* 四角面额已废弃：位置与冠字号、底部微缩带冲突，信息又与「今日应铸」重复 */
+
+/* 翻面按钮 */
+.flipbtn{
+  position:absolute; right:14px; top:14px; z-index:6;
+  width:28px; height:28px; display:grid; place-items:center; cursor:pointer;
+  background:var(--field); border:1px solid var(--line-3); border-radius:2px; color:var(--ink-2);
+  backdrop-filter:blur(4px);
+}
+.flipbtn:hover{ color:var(--gold); border-color:var(--gold-dim); }
+.flipbtn svg{ width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:1.6; }
+
+/* 券背 */
+/* 券背内边距必须与券面同口径：横向 > --ci+--cs，底部 > 46px（底部微缩带） */
+.verso-ui{ position:absolute; inset:0; padding:38px 88px 56px; display:flex; flex-direction:column; gap:14px; }
+@media (max-width:900px){ .verso-ui{ padding:30px 76px 52px; } }
+/* 券背中心车花落在数据栅格正后方，线要压得更淡，否则数字读起来发糊 */
+.verso .eng .gl3 path{ opacity:.15; }
+.verso-ui .vh{ display:flex; justify-content:space-between; align-items:baseline; gap:16px; }
+.verso-ui h2{ margin:0; font-family:var(--serif); font-weight:900; font-size:17px; letter-spacing:.08em; }
+.verso-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 30px; flex:1 1 auto; align-content:center; }
+.vrow{ display:flex; justify-content:space-between; gap:14px; border-bottom:.5px dotted var(--line-3); padding-bottom:5px; font-size:12.5px; }
+.vrow .vk{ color:var(--ink-3); white-space:nowrap; }
+.vrow .vv{ font-family:var(--mono); font-variant-numeric:tabular-nums; text-align:right; }
+.verso-ui .vfoot{ font-size:11px; color:var(--ink-4); line-height:1.75; }
+
+/* ---------- 竖版券（窄屏） ---------- */
+@media (max-width:760px){
+  /* 竖版给到 .60：按 .66 算网格比可用高度多出约 22px，会溢出内边距压住底部微缩带 */
+  .note{ aspect-ratio:.60/1; --cs:46px; --ci:8px; }
+  /* 窄券装不下大车花：300px 会盖满整张券并压掉小字，直接不印 */
+  .eng svg.big{ display:none; }
+  /* 油墨块在窄券会正好压住「今日进度」，一并收掉 */
+  .ovi{ display:none; }
+  /* 横向 40px 让开左右编织带（15–33px）；底部 54px 让开微缩带（H-46–H-36） */
+  /* 竖版一共放 5 行（券头/冠字号/面额/勋章/签名），行数必须显式给够，
+     少给一行会产生隐式行、把签名挤出内边距、被底部微缩带截断 */
+  .note-ui{
+    grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto 1fr auto auto;
+    padding:22px 40px 54px; gap:10px 0;
+  }
+  /* 首行与末行还要各自让开同侧车花（8–54px） */
+  .nu-tl{ grid-column:1; grid-row:1; padding-left:20px; }
+  .nu-tr{ grid-column:1; grid-row:2; justify-content:flex-start; }
+  .nu-l{  grid-column:1; grid-row:4; order:9; }
+  .nu-r{  grid-column:1; grid-row:3; gap:10px; }
+  .nu-bl{ display:none; }
+  .nu-br{ grid-column:1; grid-row:5; padding-right:20px; }
+  .medal{ width:120px; }
+  .medal .zh{ font-size:42px; }
+  .medal-cap{ font-size:9.5px; }
+  .thread{ left:auto; right:8%; width:7px; }
+  .verso-ui{ padding:24px 40px 54px; }
+  /* 券背标题在首行，要额外让开左上角车花（8–54px） */
+  .verso-ui .vh{ padding-left:20px; }
+  .verso-grid{ grid-template-columns:minmax(0,1fr); align-content:start; gap:6px; }
+  /* 竖版券背单列 12 行：行距与字号必须一起收，否则加一行（年薪月数）就会把
+     页脚顶进底部微缩带（实测溢出 18px + 页脚 3 行） */
+  .verso-ui .vrow{ font-size:11.5px; padding-bottom:4px; }
+  .verso-ui .vfoot{ font-size:10.5px; line-height:1.6; }
+  .cur{ font-size:26px; }
+}
+
+/* ============================================================
+   机械翻页牌
+   ============================================================ */
+.flapboard{
+  display:inline-flex; align-items:stretch; gap:3px;
+  --fl-w:44px; --fl-h:76px; --fl-fs:52px; --fl-r:3px;
+}
+.flapboard.lg{ --fl-w:52px; --fl-h:92px; --fl-fs:64px; }
+.flapboard.sm{ --fl-w:22px; --fl-h:36px; --fl-fs:24px; --fl-r:2px; }
+.flapboard.xs{ --fl-w:16px; --fl-h:26px; --fl-fs:17px; --fl-r:2px; }
+
+.fl{
+  position:relative; flex:none; width:var(--fl-w); height:var(--fl-h);
+  border-radius:var(--fl-r); perspective:280px;
+  font-family:var(--flapfont); font-weight:700; font-size:var(--fl-fs);
+  color:var(--flap-text); letter-spacing:0;
+  background:var(--flap-face2);
+  box-shadow:0 0 0 1px rgba(0,0,0,.5), 0 3px 8px -2px rgba(0,0,0,.45),
+             0 1px 0 rgba(255,255,255,.07) inset;
+}
+.fl-h{
+  position:absolute; left:0; width:100%; height:50%; overflow:hidden;
+  backface-visibility:hidden; -webkit-backface-visibility:hidden;
+}
+.fl-h i{
+  position:absolute; left:0; width:100%; height:200%;
+  line-height:var(--fl-h); text-align:center; font-style:normal;
+  text-shadow:0 1px 0 rgba(0,0,0,.5);
+}
+.fl-u{ top:0; border-radius:var(--fl-r) var(--fl-r) 0 0;
+  background:linear-gradient(180deg,#2B3140 0%,#22262F 100%); }
+html[data-theme="night"] .fl-u{ background:linear-gradient(180deg,#1D222B 0%,#15191F 100%); }
+.fl-u i{ top:0; }
+.fl-d{ bottom:0; border-radius:0 0 var(--fl-r) var(--fl-r);
+  background:linear-gradient(180deg,#1A1E26 0%,#101318 100%); }
+html[data-theme="night"] .fl-d{ background:linear-gradient(180deg,#12151B 0%,#0A0C10 100%); }
+.fl-d i{ top:-100%; }
+.fl-fu{
+  top:0; border-radius:var(--fl-r) var(--fl-r) 0 0; z-index:4;
+  transform-origin:50% 100%; transform:rotateX(0deg);
+  background:linear-gradient(180deg,#2B3140 0%,#22262F 100%);
+}
+html[data-theme="night"] .fl-fu{ background:linear-gradient(180deg,#1D222B 0%,#15191F 100%); }
+.fl-fu i{ top:0; }
+.fl-fd{
+  bottom:0; border-radius:0 0 var(--fl-r) var(--fl-r); z-index:3;
+  transform-origin:50% 0%; transform:rotateX(90deg);
+  background:linear-gradient(180deg,#1A1E26 0%,#101318 100%);
+}
+html[data-theme="night"] .fl-fd{ background:linear-gradient(180deg,#12151B 0%,#0A0C10 100%); }
+.fl-fd i{ top:-100%; }
+/* 轴线与铆钉 */
+.fl-hinge{
+  position:absolute; left:0; right:0; top:50%; height:1px; z-index:5; pointer-events:none;
+  background:rgba(0,0,0,.62); box-shadow:0 1px 0 rgba(255,255,255,.07);
+}
+.fl-hinge::before,.fl-hinge::after{
+  content:''; position:absolute; top:-1.5px; width:3px; height:3px; border-radius:50%;
+  background:rgba(255,255,255,.16);
+}
+.fl-hinge::before{ left:3px; } .fl-hinge::after{ right:3px; }
+
+.fl.go .fl-fu{ animation:flTop .10s cubic-bezier(.4,0,1,.6) forwards; }
+.fl.go .fl-fd{ animation:flBot .10s .10s cubic-bezier(0,.5,.5,1) forwards; }
+@keyframes flTop{ from{ transform:rotateX(0deg); } to{ transform:rotateX(-90deg); } }
+@keyframes flBot{ from{ transform:rotateX(90deg); } to{ transform:rotateX(0deg); } }
+@media (prefers-reduced-motion: reduce){
+  .fl.go .fl-fu,.fl.go .fl-fd{ animation:none; }
+  .fl-fu{ display:none; } .fl-fd{ display:none; }
+}
+
+.fl-sep{
+  flex:none; display:inline-flex; align-items:flex-end; justify-content:center;
+  font-family:var(--flapfont); font-weight:700; font-size:calc(var(--fl-fs)*.72);
+  color:var(--ink); padding:0 1px; line-height:1;
+  min-width:calc(var(--fl-w)*.34); height:var(--fl-h);
+  padding-bottom:calc(var(--fl-h)*.14);
+}
+
+@media (max-width:900px){
+  .flapboard{ --fl-w:34px; --fl-h:58px; --fl-fs:40px; }
+  .flapboard.lg{ --fl-w:38px; --fl-h:66px; --fl-fs:46px; }
+}
+@media (max-width:760px){
+  .flapboard{ --fl-w:30px; --fl-h:52px; --fl-fs:36px; }
+  .flapboard.lg{ --fl-w:32px; --fl-h:56px; --fl-fs:39px; }
+}
+@media (max-width:400px){
+  .flapboard{ --fl-w:25px; --fl-h:44px; --fl-fs:30px; }
+  .flapboard.lg{ --fl-w:26px; --fl-h:46px; --fl-fs:32px; }
+  .flapboard.sm{ --fl-w:19px; --fl-h:31px; --fl-fs:20px; }
+}
+
+@media(max-width:760px){.denom-k{flex-wrap:wrap}.denom-k .view-switch{order:4}.note-meta{gap:6px 12px}}

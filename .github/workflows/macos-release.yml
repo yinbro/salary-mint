@@ -1,0 +1,57 @@
+name: Build macOS app and publish release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        run: |
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' macos/Info.plist)"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v${VERSION}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION} tag=${TAG}"
+
+      - name: Build universal app
+        run: bash macos/build.sh
+
+      - name: Self test
+        run: ./macos/build/薪水铸币厂.app/Contents/MacOS/SalaryMint --selftest
+
+      - name: Package zip
+        run: |
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent \
+            "macos/build/薪水铸币厂.app" \
+            "out/SalaryMint-${{ steps.version.outputs.version }}-macOS.zip"
+          ls -lh out
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: 薪水铸币厂 ${{ steps.version.outputs.version }}
+          files: out/*.zip
+          fail_on_unmatched_files: true
+          body: |
+            macOS 通用二进制（Apple Silicon + Intel），支持 macOS 13 及以上。
+
+            未做 Apple 公证，首次打开请右键点击应用选择「打开」，或执行：
+            `xattr -dr com.apple.quarantine /Applications/薪水铸币厂.app`
+
+            在线体验：https://yinyaocool-sys.github.io/salary-mint/

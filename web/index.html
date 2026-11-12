@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="day">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>薪水铸币厂 · 钞券版</title>
+<meta name="description" content="把上班时间铸成钞券：实时进账、上海口径税后测算、法定节假日与调休工资日历、金库与换算所。">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/note.css">
+<link rel="stylesheet" href="assets/parts.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23A87C2A'/%3E%3Ccircle cx='16' cy='16' r='10' fill='none' stroke='%23F1EADB' stroke-width='1.2'/%3E%3Ctext x='16' y='21' font-size='13' text-anchor='middle' fill='%23F1EADB' font-family='serif' font-weight='900'%3E%E9%93%B8%3C/text%3E%3C/svg%3E">
+<script>
+(function(){
+  try{
+    var c = JSON.parse(localStorage.getItem('mintatl.cfg.v1')||'{}');
+    var t = c.theme || 'auto';
+    if (t === 'auto'){
+      var h = new Date().getHours();
+      t = (h >= 7 && h < 18) ? 'day' : 'night';
+    }
+    document.documentElement.setAttribute('data-theme', t === 'night' ? 'night' : 'day');
+  }catch(e){}
+})();
+</script>
+</head>
+<body>
+
+<!-- ============ Edition IV 首次初始化 ============ -->
+<div class="wizard" id="wizard" hidden aria-modal="true" role="dialog" aria-labelledby="wizTitle">
+  <div class="wiz-note">
+    <div class="wiz-head"><span class="eyebrow">Edition IV · 初始化</span><b id="wizCount">1 / 3</b></div>
+    <div class="wiz-step on" data-step="1">
+      <h2 id="wizTitle">先填薪酬结构</h2><p>只需三步，所有数据只保存在当前浏览器。</p>
+      <div class="frow"><div class="field"><label>税前月 base（元）</label><input id="wMonthly" type="number" min="0" step="500" value="15000"></div><div class="field"><label>年薪月数</label><input id="wAnnual" type="number" min="12" max="24" step="0.5" value="15"></div></div>
+      <div class="field"><label>奖金系数</label><div class="seg wrapseg" id="wFactor"><button data-v="0">0</button><button data-v="0.5">0.5</button><button data-v="0.8">0.8</button><button data-v="1" class="on">1</button><button data-v="1.2">1.2</button><button data-v="custom">自定义</button></div><input id="wFactorCustom" type="number" min="0" step="0.1" value="1" hidden></div>
+    </div>
+    <div class="wiz-step" data-step="2">
+      <h2>选择班次</h2><p>预设可继续在设置中微调。</p>
+      <div class="preset-grid" id="wShift"><button data-v="flex" class="on"><b>弹性班次</b><span>10:00–19:00 · 午休 2 小时</span></button><button data-v="standard"><b>标准班次</b><span>09:00–18:00 · 午休 1 小时</span></button><button data-v="custom"><b>自定义</b><span>现在填写</span></button></div>
+      <div class="frow" id="wShiftCustom" hidden><div class="field"><label>开工</label><input id="wStart" type="time" value="10:00"></div><div class="field"><label>收工</label><input id="wEnd" type="time" value="19:00"></div><div class="field"><label>午休开始</label><input id="wLunchAt" type="time" value="12:00"></div><div class="field"><label>午休分钟</label><input id="wLunch" type="number" value="120" min="0"></div></div>
+    </div>
+    <div class="wiz-step" data-step="3">
+      <h2>选择默认视角</h2><p>随时可以在今日金额旁切换。</p>
+      <div class="preset-grid two" id="wView"><button data-v="annualized" class="on"><b>年化价值</b><span>奖金按全年工作日摊入日薪</span></button><button data-v="actual"><b>实际发薪</b><span>普通月份只算 base，奖金集中到奖金月</span></button></div>
+    </div>
+    <div class="wiz-actions"><button class="btn" id="wBack" hidden>上一步</button><button class="btn pri" id="wNext">下一步</button></div>
+  </div>
+</div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#top" aria-label="回到券面">
+      <svg class="seal" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18.4" fill="none" stroke="currentColor" stroke-width="1" opacity=".5"/>
+        <circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width=".6" opacity=".35"/>
+        <g id="seal-gl" stroke="currentColor" stroke-width=".5" fill="none" opacity=".7"></g>
+        <text x="20" y="25.6" font-size="15" text-anchor="middle" fill="currentColor" font-family="Songti SC,STSong,serif" font-weight="900">铸</text>
+      </svg>
+      <span>
+        <b>薪水铸币厂</b>
+        <i>Salary Mint Atelier</i>
+      </span>
+    </a>
+
+    <nav class="navx" id="navx" aria-label="章节导航">
+      <a href="#today"    data-sec="today"><b>I</b>今日铸造</a>
+      <a href="#vault"    data-sec="vault"><b>II</b>金库</a>
+      <a href="#payroll"  data-sec="payroll"><b>III</b>薪酬解剖</a>
+      <a href="#calendar" data-sec="calendar"><b>IV</b>铸币日历</a>
+      <a href="#exchange" data-sec="exchange"><b>V</b>换算所</a>
+      <a href="#medals"   data-sec="medals"><b>VI</b>勋章厅</a>
+      <a href="#sources"  data-sec="sources"><b>VII</b>口径与来源</a>
+    </nav>
+
+    <div class="tools">
+      <button class="ibtn" id="btnSound" title="翻页牌音效（S）" aria-label="切换音效">
+        <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>
+      </button>
+      <button class="ibtn" id="btnPrivacy" title="老板键：模糊金额（P）" aria-label="隐私模式">
+        <svg viewBox="0 0 24 24"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+      </button>
+      <button class="ibtn" id="btnTheme" title="日铸 / 夜铸（T）" aria-label="切换主题">
+        <svg viewBox="0 0 24 24" id="icTheme"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6"/></svg>
+      </button>
+      <button class="ibtn txt" id="btnCfg" title="铸币参数（C）">设置</button>
+    </div>
+    <div class="prog" id="prog"></div>
+  </div>
+</header>
+
+<a id="top"></a>
+
+<!-- ============ 钞券头版 ============ -->
+<section class="stage">
+  <div class="wrap">
+    <div class="note-holder">
+      <div class="note" id="note">
+
+        <!-- 正面 -->
+        <div class="face recto">
+          <div class="eng" id="engRecto"></div>
+          <div class="frame"></div>
+          <div class="thread"></div>
+          <div class="wm r" id="wmRecto">铸</div>
+          <!-- 变色油墨块：置于左侧页边中部，避开印区文字 -->
+          <div class="ovi a"></div>
+
+          <button class="flipbtn" id="btnFlip" title="翻到券背（F）" aria-label="翻面">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.2M21 12a9 9 0 0 1-15.5 6.2"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+          </button>
+
+          <div class="note-ui">
+            <div class="nu-tl">
+              <div class="bank">
+                <svg class="sealbox" viewBox="0 0 40 40" aria-hidden="true">
+                  <circle cx="20" cy="20" r="18.6" fill="none" stroke="currentColor" stroke-width=".9" opacity=".45"/>
+                  <g id="seal-gl2" stroke="currentColor" stroke-width=".45" fill="none" opacity=".62"></g>
+                  <circle cx="20" cy="20" r="9.4" fill="none" stroke="currentColor" stroke-width=".5" opacity=".4"/>
+                  <text x="20" y="25.4" font-size="14" text-anchor="middle" fill="currentColor" font-family="Songti SC,STSong,serif" font-weight="900">铸</text>
+                </svg>
+                <span>
+                  <h1>薪水铸币厂</h1>
+                  <span class="en">Salary Mint Atelier</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="nu-tr">
+              <div style="text-align:right">
+                <div class="serial" id="serialTop">AA 00000000</div>
+                <div class="eyebrow" style="margin-top:3px;font-size:9.5px" id="noteDate">—</div>
+              </div>
+            </div>
+
+            <div class="nu-l">
+              <div class="medal">
+                <svg id="engMedal" viewBox="0 0 200 200" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true"></svg>
+                <span class="zh">铸</span>
+              </div>
+              <div class="medal-cap" id="medalCap">见票即付 · 午休不计薪</div>
+            </div>
+
+            <div class="nu-r">
+              <div class="denom-k">
+                <span class="kl">今日已铸</span>
+                <span class="st" id="dayState">—</span>
+                <span class="st" id="netFlag" hidden>到手口径</span>
+                <div class="view-switch" id="viewQuick" role="group" aria-label="金额视角"><button data-v="annualized">年化价值</button><button data-v="actual">实际发薪</button></div>
+              </div>
+              <div class="denom-row">
+                <span class="cur">￥</span>
+                <span class="flapboard lg blur" id="boardMain" role="img" aria-label="今日已铸金额" data-v="0.00"></span>
+              </div>
+              <div class="note-meta blur">
+                <span class="mi"><b id="mRate">—</b><span>每秒进账</span></span>
+                <span class="mi"><b id="mHour">—</b><span>时薪</span></span>
+                <span class="mi"><b id="mDay">—</b><span>今日应铸</span></span>
+                <span class="mi"><b id="mPct">—</b><span>今日进度</span></span>
+              </div>
+            </div>
+
+            <div class="nu-bl">
+              <div class="guar">本票以劳动时间为担保</div>
+              <div class="serial b" id="serialBot">AA 00000000</div>
+            </div>
+
+            <div class="nu-br">
+              <div class="sig">
+                <div class="nm" id="sigName">MINT MASTER</div>
+                <div class="rl">值班铸币师 · Mint Master</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 背面 -->
+        <div class="face verso">
+          <div class="eng" id="engVerso"></div>
+          <div class="frame"></div>
+          <div class="wm v">券</div>
+          <button class="flipbtn" id="btnFlip2" aria-label="翻回券面">
+            <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15.5-6.2M21 12a9 9 0 0 1-15.5 6.2"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+          </button>
+          <div class="verso-ui">
+            <div class="vh">
+              <h2>券背 · 计薪口径</h2>
+              <span class="eyebrow" style="font-size:9.5px">Terms of Minting</span>
+            </div>
+            <div class="verso-grid blur" id="versoGrid"></div>
+            <div class="vfoot" id="versoFoot"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+<p class="view-note" id="viewNote">当前按年化价值显示：奖金摊入工作日；税务计算不变。</p>
+
+<!-- ============ I 今日铸造 ============ -->
+<section class="chap" id="today">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">I</div>
+      <div class="chap-t">
+        <h2>今日铸造</h2>
+        <p class="lead">一天的班次被拆成计薪分钟，逐秒压印。午休时段停机，不计薪。</p>
+      </div>
+    </div>
+
+    <div class="grid g32">
+      <div class="card">
+        <div class="card-h"><h3>班次时间轴</h3><span class="k" id="tlRange">—</span></div>
+        <div class="tl" id="tl"></div>
+        <div class="tl-lg">
+          <span><i class="a"></i>已铸</span>
+          <span><i class="b"></i>计薪时段</span>
+          <span><i class="c"></i>午休（不计薪）</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-h"><h3 id="cdTitle">倒计时</h3><span class="k">Countdown</span></div>
+          <div class="bignum blur" id="cdVal">—</div>
+          <div class="stat" style="margin-top:10px"><span class="sub" id="cdSub">—</span></div>
+          <div class="pbar" style="margin-top:12px"><i id="cdBar" style="width:0"></i></div>
+        </div>
+        <div class="card settle-cta" id="settleCta">
+          <div><div class="card-h"><h3>今日收工结算</h3><span class="k" id="settleState">随时可记</span></div><p>记录今天的心情、赚钱感受与原因；收工后入口会突出，但不会打断你。</p></div>
+          <button class="btn pri" id="btnSettle">结算今日</button>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>本月印量</h3><span class="k" id="moTag">—</span></div>
+          <div class="grid g2" style="gap:12px">
+            <div class="stat"><span class="lb">已铸</span><span class="vl blur" id="moMint">—</span></div>
+            <div class="stat"><span class="lb">应铸</span><span class="vl blur" id="moExp">—</span></div>
+            <div class="stat"><span class="lb">计薪日</span><span class="vl" id="moDays">—</span></div>
+            <div class="stat"><span class="lb">已完成</span><span class="vl" id="moDone">—</span></div>
+          </div>
+          <div class="pbar" style="margin-top:14px"><i id="moBar" style="width:0"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-h">
+        <h3>今日已铸可兑换</h3>
+        <span class="k">Redeemable Today</span>
+      </div>
+      <div class="gsets" id="goalSets" role="group" aria-label="可兑换体系"></div>
+      <div class="goals blur" id="goals"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 本月账本 ============ -->
+<section class="chap month-ledger" id="ledger">
+  <div class="wrap">
+    <div class="card ledger-card">
+      <div class="ledger-title"><div><span class="eyebrow">Monthly Ledger</span><h2>本月账本</h2></div><button class="btn pri" id="btnReport">查看本月简报</button></div>
+      <div class="ledger-stats">
+        <div class="stat"><span class="lb">预计税前 · 当前口径</span><span class="vl blur" id="ldGross">—</span></div>
+        <div class="stat"><span class="lb">预计到手</span><span class="vl blur" id="ldNet">—</span></div>
+        <div class="stat"><span class="lb">已工作 / 剩余</span><span class="vl" id="ldDays">—</span></div>
+        <div class="stat"><span class="lb">结算记录</span><span class="vl" id="ldRecords">—</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ II 金库 ============ -->
+<section class="chap" id="vault">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">II</div>
+      <div class="chap-t">
+        <h2>金库</h2>
+        <p class="lead">本月已铸金额按面额堆成金条与散币，虚线是本月尚未铸出的份额。</p>
+      </div>
+    </div>
+    <div class="vault-frame">
+      <canvas id="vaultCv" aria-label="本月已铸金额的金库示意图"></canvas>
+      <div class="vault-hud">
+        <div>
+          <div class="vk">本月已铸</div>
+          <div class="vv blur" id="vMint">—</div>
+        </div>
+        <div class="r">
+          <div class="vk">本月应铸</div>
+          <div class="vv blur" id="vExp">—</div>
+        </div>
+      </div>
+      <div class="vault-legend">
+        <span>1 金条 = <b id="vUnit">￥1,000</b></span>
+        <span>1 散币 = <b id="vCoin">￥100</b></span>
+        <span>金条 <b id="vBars">0</b> 根 · 散币 <b id="vCoins">0</b> 枚</span>
+        <span>虚线 <b id="vGhost">0</b> 根待铸</span>
+      </div>
+    </div>
+    <div class="grid g4" style="margin-top:16px">
+      <div class="card"><div class="stat"><span class="lb">本年累计已铸</span><span class="vl blur" id="yMint">—</span><span class="sub" id="yMintSub">—</span></div></div>
+      <div class="card"><div class="stat"><span class="lb">本月加班计薪</span><span class="vl blur" id="moOt">—</span><span class="sub" id="moOtSub">—</span></div></div>
+      <div class="card"><div class="stat"><span class="lb">本月法定节假日</span><span class="vl" id="moLegal">—</span><span class="sub">不上班 · 加班 300%</span></div></div>
+      <div class="card"><div class="stat"><span class="lb">本月调休上班</span><span class="vl" id="moMakeup">—</span><span class="sub">周末照常计薪</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ III 薪酬解剖 ============ -->
+<section class="chap" id="payroll">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">III</div>
+      <div class="chap-t">
+        <h2>薪酬解剖</h2>
+        <p class="lead">年薪月数（默认 15 薪）→ 12 个月 base 走累计预扣法、年终奖走全年一次性奖金单独计税 → 上海口径五险一金（个人部分）→ 到手。不含专项附加扣除。</p>
+      </div>
+    </div>
+
+    <div class="card annu" id="annuCard" style="margin-bottom:16px">
+      <div class="card-h"><h3>年薪结构</h3><span class="k" id="annuK">—</span></div>
+      <div class="anb" id="anBar"></div>
+      <div class="grid g4" style="gap:12px;margin-top:14px">
+        <div class="stat"><span class="lb">月 base × 12</span><span class="vl" id="anBase">—</span><span class="sub" id="anBaseSub">—</span></div>
+        <div class="stat"><span class="lb">年终奖</span><span class="vl" id="anBonus">—</span><span class="sub" id="anBonusSub">—</span></div>
+        <div class="stat"><span class="lb">年总包（税前）</span><span class="vl" id="anPkg">—</span><span class="sub" id="anPkgSub">—</span></div>
+        <div class="stat"><span class="lb">预计年到手</span><span class="vl" id="anNet">—</span><span class="sub" id="anNetSub">—</span></div>
+      </div>
+      <div class="rule" style="margin:16px 0 12px"></div>
+      <div class="grid g2" style="gap:12px">
+        <div class="stat"><span class="lb">年终奖个税 · 单独计税</span><span class="vl" id="anApart">—</span><span class="sub" id="anApartSub">—</span></div>
+        <div class="stat"><span class="lb">对照 · 并入综合所得</span><span class="vl" id="anMerged">—</span><span class="sub" id="anMergedSub">—</span></div>
+      </div>
+      <p class="anote" id="anNote">—</p>
+    </div>
+
+    <div class="grid g23">
+      <div class="card">
+        <div class="card-h"><h3>本月拆解</h3><span class="k" id="wfMonth">—</span></div>
+        <div class="wf blur" id="wf"></div>
+        <div class="rule" style="margin:16px 0 12px"></div>
+        <div class="grid g2" style="gap:12px">
+          <div class="stat"><span class="lb">社保缴费基数</span><span class="vl" id="pSiBase">—</span><span class="sub" id="pSiHint">—</span></div>
+          <div class="stat"><span class="lb">公积金基数 / 比例</span><span class="vl" id="pHfBase">—</span><span class="sub" id="pHfHint">—</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>累计预扣法 · 全年个税走势</h3><span class="k">Cumulative Withholding</span></div>
+        <svg class="taxsvg" id="taxSvg" viewBox="0 0 640 200" preserveAspectRatio="none" aria-label="全年每月个税与到手走势"></svg>
+        <div class="tl-lg" style="margin-top:8px">
+          <span><i class="a" style="background:var(--gold)"></i>当月个税（左轴，0 起）</span>
+          <span><i class="a" style="background:var(--engrave)"></i>当月到手（右轴，非 0 起）</span>
+        </div>
+        <p style="margin:10px 0 0;font-size:11.5px;color:var(--ink-4);line-height:1.75" id="taxNote">—</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-h"><h3>全年逐月明细</h3><span class="k">Monthly Ledger</span></div>
+      <div class="tscroll">
+        <table class="t blur" id="taxTable">
+          <thead><tr>
+            <th>月</th><th class="n">税前</th><th class="n">养老</th><th class="n">医疗</th><th class="n">失业</th>
+            <th class="n">公积金</th><th class="n">累计应税</th><th class="n">税率</th><th class="n">当月个税</th><th class="n">到手</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ IV 铸币日历 ============ -->
+<section class="chap" id="calendar">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">IV</div>
+      <div class="chap-t">
+        <h2>铸币日历</h2>
+        <p class="lead">按国务院办公厅当年放假通知渲染：法定节假日、调休放假、调休上班日各自成态；支持过去 31 天补录结算，完整记录保存在本机 localStorage，Cookie 仅作兼容。</p>
+      </div>
+    </div>
+
+    <div class="calbar">
+      <div class="mo">
+        <b id="calTitle">—</b>
+        <span id="calSub">—</span>
+      </div>
+      <div class="calnav">
+        <button class="btn sm" id="calPrev" aria-label="上一月">◀</button>
+        <button class="btn sm" id="calToday">回到本月</button>
+        <button class="btn sm" id="calNext" aria-label="下一月">▶</button>
+      </div>
+    </div>
+
+    <div class="grid g32">
+      <div class="card flat" style="padding:0">
+        <div class="cal" id="cal"></div>
+        <div class="callg">
+          <span><em class="w"></em>计薪工作日</span>
+          <span><em class="r"></em>周末</span>
+          <span><em class="o"></em>放假（调休凑假）</span>
+          <span><em class="l"></em>法定节假日</span>
+          <span><em class="m"></em>调休上班日</span>
+          <span><em class="t"></em>标记加班</span>
+        </div>
+        <p class="mstat" id="calMood">—</p>
+        <p id="calWarn" class="caveat" style="margin-top:10px"></p>
+      </div>
+      <div class="sheet" id="sheet"></div>
+    </div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-h"><h3>年度铸造节奏</h3><span class="k" id="heatYear">—</span></div>
+      <div class="ybars" id="yearBars"></div>
+      <div class="rule" style="margin:16px 0 12px"></div>
+      <div class="grid g4" style="gap:12px">
+        <div class="stat"><span class="lb">全年应铸（税前）</span><span class="vl" id="yTotal">—</span><span class="sub" id="ySub">—</span></div>
+        <div class="stat"><span class="lb">计薪日</span><span class="vl" id="yWork">—</span><span class="sub">含调休上班日</span></div>
+        <div class="stat"><span class="lb">法定节假日</span><span class="vl" id="yLegal">—</span><span class="sub">加班 300%</span></div>
+        <div class="stat"><span class="lb">已标记心情</span><span class="vl" id="yMood">—</span><span class="sub" id="yMoodSub">点日历格子打标</span></div>
+      </div>
+      <div class="callg" style="margin-top:12px">
+        <span><em style="background:var(--gold)"></em>已铸月份</span>
+        <span><em style="background:color-mix(in srgb,var(--gold) 46%, var(--paper-2))"></em>当月（按进度填充）</span>
+        <span><em style="background:var(--paper-2);border:1px solid var(--rule)"></em>未来月份</span>
+        <span><em style="background:var(--engrave)"></em>心情好的天</span>
+        <span><em style="background:var(--press)"></em>心情差的天</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ V 换算所 ============ -->
+<section class="chap" id="exchange">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">V</div>
+      <div class="chap-t">
+        <h2>换算所</h2>
+        <p class="lead">把时间换算成钱，再把钱换算成看得懂的东西。</p>
+      </div>
+    </div>
+
+    <div class="grid g3">
+      <div class="card">
+        <div class="card-h"><h3>会议成本计算器</h3><span class="k">Meeting</span></div>
+        <div class="mtr">
+          <div class="frow">
+            <div class="field"><label>参会人数</label><input type="number" id="mtN" value="6" min="1" step="1"></div>
+            <div class="field"><label>时长（分钟）</label><input type="number" id="mtM" value="60" min="1" step="5"></div>
+          </div>
+          <div class="field">
+            <label>人均时薪口径</label>
+            <select id="mtMode">
+              <option value="me">全员按我的时薪</option>
+              <option value="custom">自定义人均时薪</option>
+            </select>
+          </div>
+          <div class="field" id="mtCustomWrap" hidden><label>人均时薪（元）</label><input type="number" id="mtH" value="120" min="0" step="10"></div>
+          <div>
+            <div class="eyebrow">这场会烧掉</div>
+            <div class="bignum" id="mtOut">—</div>
+            <div class="field"><span class="hint" id="mtHint">—</span></div>
+          </div>
+          <div class="pbar"><i id="mtBar" style="width:0"></i></div>
+          <span class="hint" id="mtCmp">—</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>摸鱼收益器</h3><span class="k">Idle Yield</span></div>
+        <div class="mtr">
+          <div class="frow">
+            <div class="field"><label>今日摸鱼（分钟）</label><input type="number" id="idM" value="45" min="0" step="5"></div>
+            <div class="field"><label>其中喝水上厕所</label><input type="number" id="idF" value="15" min="0" step="5"></div>
+          </div>
+          <div>
+            <div class="eyebrow">带薪摸鱼折现</div>
+            <div class="bignum blur" id="idOut">—</div>
+            <div class="field"><span class="hint" id="idHint">—</span></div>
+          </div>
+          <div class="rule"></div>
+          <div class="grid g2" style="gap:10px">
+            <div class="stat"><span class="lb">相当于今日的</span><span class="vl" id="idPct">—</span></div>
+            <div class="stat"><span class="lb">一年折算</span><span class="vl blur" id="idYear">—</span></div>
+          </div>
+          <span class="hint">口径：摸鱼发生在计薪时段内，扣除生理必需时间后折现。</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>奶茶本位制</h3><span class="k">Bubble-Tea Standard</span></div>
+        <div class="mtr">
+          <div class="frow">
+            <div class="field"><label>一杯奶茶（元）</label><input type="number" id="btP" value="18" min="1" step="1"></div>
+            <div class="field"><label>换算基数</label>
+              <select id="btBase">
+                <option value="today">今日已铸</option>
+                <option value="day">一天日薪</option>
+                <option value="month">一个月税前</option>
+                <option value="net">一个月到手</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <div class="eyebrow">折合</div>
+            <div class="bignum blur" id="btOut">—</div>
+            <div class="field"><span class="hint" id="btHint">—</span></div>
+          </div>
+          <div class="rule"></div>
+          <div class="units blur" id="units"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VI 勋章厅 ============ -->
+<section class="chap" id="medals">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">VI</div>
+      <div class="chap-t">
+        <h2>勋章厅</h2>
+        <p class="lead">六枚勋章，按当日与本月的铸造状态即时判定，不写入历史成绩。</p>
+      </div>
+    </div>
+    <div class="medals" id="medalWall"></div>
+
+    <div class="card" style="margin-top:20px">
+      <div class="card-h"><h3>战报卡</h3><span class="k">Daily Bulletin</span></div>
+      <div class="grid g23" style="align-items:start">
+        <div>
+          <p style="margin:0 0 12px;font-size:13px;color:var(--ink-2);line-height:1.8">
+            把某一天的铸造结果压成一张 1080×1350 的券式卡片，可直接保存分享。金额会随隐私模式一起处理。
+          </p>
+          <div class="seg" id="segCardDay" role="group" aria-label="战报日期" style="margin-bottom:8px">
+            <button type="button" data-v="prev">前一天</button>
+            <button type="button" data-v="today">今天</button>
+          </div>
+          <p class="cdhint" id="cardDayHint" style="margin:0 0 14px">—</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn pri" id="btnCard">
+              <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4 20h16"/></svg>
+              生成并下载
+            </button>
+            <button class="btn" id="btnCardPrev">预览</button>
+          </div>
+        </div>
+        <div id="cardPrev" style="display:none">
+          <canvas id="cardCv" style="width:100%;border:1px solid var(--line);border-radius:3px"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VII 口径与来源 ============ -->
+<section class="chap" id="sources">
+  <div class="wrap">
+    <div class="chap-head">
+      <div class="chap-no">VII</div>
+      <div class="chap-t">
+        <h2>口径与来源</h2>
+        <p class="lead">法定数字都能追到一手出处，默认收起，需要核对时展开。</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="fold-sum">
+        节假日与调休按国务院办公厅通知，社保 · 公积金 · 个税 · 加班倍率按上海与全国现行规定；午休不计薪，税后测算不含专项附加扣除。
+      </p>
+      <details class="fold">
+        <summary><span class="ft">数据来源</span><span class="fn"><b id="srcN">—</b> 条<span class="fg"> · <span id="srcGroups">—</span></span></span></summary>
+        <div class="src" id="srcList"></div>
+      </details>
+      <details class="fold">
+        <summary><span class="ft">口径边界</span><span class="fn"><b id="cavN">—</b> 条</span></summary>
+        <ul class="caveat" id="caveatList"></ul>
+      </details>
+    </div>
+
+  </div>
+</section>
+
+<footer class="ft">
+  <div class="wrap">
+    <div class="ft-in">
+      <div>
+        <div class="ftk">薪水铸币厂 · Salary Mint Atelier</div>
+        <small>
+          全部计算在浏览器本地完成，参数只存在这台设备的 localStorage 里，不上传任何服务器。<br>
+          税后测算仅供估算参考，不构成薪酬或税务意见；实际以工资单与个税 App 为准。
+        </small>
+      </div>
+      <div>
+        <div class="ftk">快捷键</div>
+        <small>
+          <span class="num">T</span> 日夜切换 ·
+          <span class="num">P</span> 老板键 ·
+          <span class="num">S</span> 音效<br>
+          <span class="num">C</span> 设置 ·
+          <span class="num">F</span> 翻面 ·
+          <span class="num">1–7</span> 跳章 ·
+          <span class="num">Esc</span> 关闭
+        </small>
+      </div>
+      <div>
+        <div class="ftk">Edition</div>
+        <small id="ftBuild">—</small>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ 设置抽屉 ============ -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="铸币参数" aria-hidden="true">
+  <div class="dh">
+    <b>铸币参数</b>
+    <button class="ibtn" id="btnClose" aria-label="关闭">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+  <div class="db">
+
+    <div class="dsec">
+      <div class="dt">计薪方式</div>
+      <div class="seg" id="segMode">
+        <button data-v="month" class="on">按月薪</button>
+        <button data-v="hour">按时薪</button>
+      </div>
+      <div id="paneMonth">
+        <div class="frow">
+          <div class="field"><label>税前月薪（元）</label><input type="number" id="fMonthly" min="0" step="500"></div>
+          <div class="field"><label>每月计薪天数</label><input type="number" id="fWorkDays" min="1" step="0.25"><span class="hint">法定月平均 21.75</span></div>
+        </div>
+        <p class="dhint">年薪结构固定为 12 个月 base + 奖金月数 × 奖金系数。旧版年薪月数会自动无损迁移。</p>
+        <div class="seg wrapseg" id="segAnnual"></div>
+        <div class="frow">
+          <div class="field"><label>年薪月数（兼容）</label><input type="number" id="fAnnual" min="12" max="24" step="0.5"><span class="hint" id="fAnnualHint">—</span></div>
+          <div class="field"><label>奖金月数</label><input type="number" id="fBonusMonths" min="0" max="12" step="0.5"></div>
+        </div>
+        <div class="frow">
+          <div class="field"><label>奖金系数</label><input type="number" id="fBonusFactor" min="0" step="0.1"><span class="hint">常用 0 / 0.5 / 0.8 / 1 / 1.2，也可自定义</span></div>
+          <div class="field"><label>奖金发放月</label><select id="fBonusMonth"></select></div>
+        </div>
+        <div class="field"><label>年终奖（税前）</label><input type="text" id="fBonusView" disabled><span class="hint">＝月 base × 奖金月数 × 奖金系数</span></div>
+        <div class="field"><label>默认金额视角</label><div class="seg" id="segView"><button type="button" data-v="annualized">年化价值</button><button type="button" data-v="actual">实际发薪</button></div><span class="hint">只影响展示与换算，不改变税务底层。</span></div>
+        <div class="sw" hidden>
+          <span class="swl">旧版摊入开关</span>
+          <button class="tog" id="fSpread" role="switch" aria-checked="true"></button>
+        </div>
+      </div>
+      <div id="paneHour" hidden>
+        <div class="field"><label>时薪（元/小时）</label><input type="number" id="fHourly" min="0" step="5"></div>
+      </div>
+    </div>
+
+    <div class="dsec">
+      <div class="dt">班次</div>
+      <p class="dhint">默认 10:00–19:00、午休 12:00–14:00（上海常见口径），午休不计薪，每日计薪 7 小时。</p>
+      <div class="frow">
+        <div class="field"><label>开工</label><input type="time" id="fStart"></div>
+        <div class="field"><label>收工</label><input type="time" id="fEnd"></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>午休开始</label><input type="time" id="fLunchAt"></div>
+        <div class="field"><label>午休时长（分钟）</label><input type="number" id="fLunch" min="0" step="10"></div>
+      </div>
+      <div class="field">
+        <label>每周计薪日</label>
+        <div class="wk" id="wkPick"></div>
+      </div>
+    </div>
+
+    <div class="dsec">
+      <div class="dt">税后测算 · 上海口径（2026 参数）</div>
+      <div class="sw">
+        <span class="swl">券面按到手金额显示<i>用当月到手/税前之比折算今日已铸</i></span>
+        <button class="tog" id="fNetMode" role="switch" aria-checked="false"></button>
+      </div>
+      <div class="frow">
+        <div class="field"><label>社保基数（留空=月薪）</label><input type="number" id="fSiBase" min="0" step="100"><span class="hint" id="siRange">—</span></div>
+        <div class="field"><label>公积金基数（留空=月薪）</label><input type="number" id="fHfBase" min="0" step="100"></div>
+      </div>
+      <div class="frow">
+        <div class="field"><label>公积金个人比例</label>
+          <select id="fHfRate">
+            <option value="0.05">5%</option><option value="0.06">6%</option><option value="0.07">7%</option>
+          </select>
+        </div>
+        <div class="field"><label>本年首个计薪月</label>
+          <select id="fTaxStart"></select>
+          <span class="hint">影响累计预扣起点</span>
+        </div>
+      </div>
+      <span class="hint">个人费率固定：养老 8% · 医疗 2% · 失业 0.5%（上海口径，合计 10.5%）。不含专项附加扣除。</span>
+    </div>
+
+    <div class="dsec">
+      <div class="dt">券面</div>
+      <div class="field"><label>值班铸币师署名</label><input type="text" id="fSig" maxlength="16" placeholder="MINT MASTER"></div>
+      <div class="sw">
+        <span class="swl">翻页牌音效<i>数字跳动时的机械声</i></span>
+        <button class="tog" id="fSound" role="switch" aria-checked="false"></button>
+      </div>
+      <div class="field">
+        <label>主题</label>
+        <div class="seg" id="segTheme">
+          <button data-v="auto">跟随时段</button>
+          <button data-v="day">日铸</button>
+          <button data-v="night">夜铸</button>
+        </div>
+      </div>
+      <div class="field"><label>金库面额（1 金条 = 多少元）</label>
+        <select id="fUnit">
+          <option value="500">￥500</option><option value="1000">￥1,000</option>
+          <option value="2000">￥2,000</option><option value="5000">￥5,000</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="dsec">
+      <div class="dt">可兑换清单</div>
+      <div class="gsets" id="goalSetPick" role="group" aria-label="体系预设"></div>
+      <p class="dhint">选一套预设会整组替换下面的清单；手动改过任意一项即记为「自定义」。</p>
+      <div class="goaledit" id="goalEdit"></div>
+      <button class="btn sm" id="btnAddGoal" style="align-self:flex-start">＋ 添加一项</button>
+    </div>
+
+    <div class="dsec">
+      <div class="dt">数据</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" id="btnExport">导出完整 JSON</button>
+        <button class="btn sm" id="btnImport">导入 JSON</button>
+        <button class="btn sm" id="btnClearMood">清空心情记录</button>
+        <button class="btn sm" id="btnClearAll">清空全部本地数据</button>
+        <button class="btn sm" id="btnReset">恢复默认参数</button>
+      </div>
+      <input type="file" id="fileIn" accept=".json,application/json" hidden>
+      <span class="hint">完整导出包含 cfg / days / mood / schemaVersion / exportedAt。数据仅在本浏览器，清理浏览器数据会丢失；导入会先校验，失败不会改动现有数据。</span>
+    </div>
+
+  </div>
+  <div class="df">
+    <button class="btn pri" id="btnSave">保存并压印</button>
+    <button class="btn" id="btnRevert">放弃改动</button>
+    <span class="hint" id="dirtyHint" style="margin-left:auto"></span>
+  </div>
+</aside>
+
+<!-- 收工结算 -->
+<div class="modal edition-modal" id="settleModal">
+  <div class="mb wide">
+    <div class="modal-head"><div><span class="eyebrow">Daily Close</span><b>今日收工结算</b></div><button class="ibtn" data-close="settleModal" aria-label="关闭">×</button></div>
+    <div class="field"><label>结算日期（可补录过去 31 天）</label><input id="settleDate" type="date"></div>
+    <div class="settle-values" id="settleValues"></div>
+    <div class="mline"><span class="ml">心情</span><div class="mchips" id="settleMood"></div></div>
+    <div class="mline"><span class="ml">这钱好赚吗</span><div class="mchips" id="settleWorth"></div></div>
+    <div class="mline"><span class="ml">原因标签（最多 2 个）</span><div class="reason-chips" id="settleReasons"></div></div>
+    <p class="dhint" id="settleHint"></p>
+    <div class="ma"><button class="btn" data-close="settleModal">取消</button><button class="btn pri" id="btnSettleSave">保存结算</button></div>
+  </div>
+</div>
+
+<!-- 月度简报 -->
+<div class="modal edition-modal" id="reportModal">
+  <div class="mb report-box">
+    <div class="modal-head"><div><span class="eyebrow">Monthly Brief</span><b>本月简报</b></div><button class="ibtn" data-close="reportModal" aria-label="关闭">×</button></div>
+    <div id="reportBody"></div>
+    <div class="report-actions"><div class="seg" id="reportPrivacy"><button data-v="full">完整</button><button data-v="private" class="on">隐私</button><button data-v="emotion">纯情绪</button></div><button class="btn" id="btnReportPreview">预览分享卡</button><button class="btn pri" id="btnReportDownload">下载 PNG</button></div>
+    <div id="reportPreview" hidden><canvas id="reportCanvas"></canvas></div>
+  </div>
+</div>
+
+<!-- 确认弹窗 -->
+<div class="modal" id="modal">
+  <div class="mb">
+    <b id="mkTitle">确认</b>
+    <p id="mkBody">—</p>
+    <div class="ma">
+      <button class="btn" id="mkNo">取消</button>
+      <button class="btn pri" id="mkYes">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="privacy-note">老板键已开启 · 按 P 恢复</div>
+<div class="toast" id="toast"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/payroll.js"></script>
+<script src="assets/engrave.js"></script>
+<script src="assets/flap.js"></script>
+<script src="assets/vault.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/desktop-bridge.js"></script>
+</body>
+</html>
