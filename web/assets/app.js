@@ -701,6 +701,10 @@ function renderPayroll(){
       <td class="n">—</td><td class="n">—</td>
       <td class="n">${fmt(ty.year.tax,0)}</td>
       <td class="n">${fmt(ty.year.net,0)}</td></tr>`;
+
+  /* 折叠标题上的摘要：不展开也能看到全年合计 */
+  const hint = $('#taxTableHint');
+  if (hint) hint.textContent = '12 个月 · 全年到手 ' + yuan0(ty.year.net);
 }
 
 /* ---------- 年薪结构（年薪月数 / 年终奖 / 年到手） ---------- */
@@ -1037,6 +1041,8 @@ function renderYear(){
     : '年化月均 ' + yuan0(total/12);
   $('#yWork').textContent  = work + ' 天' + (otD ? ' + 加班 ' + otD + ' 天' : '');
   $('#yLegal').textContent = legal + ' 天';
+  const yHint = document.getElementById('yearHint');
+  if (yHint) yHint.textContent = '计薪 ' + work + ' 天 · 全年 ' + yuan0(total);
   $('#yMood').textContent  = yMood.n + ' 天';
   $('#yMoodSub').textContent = yMood.n
     ? '开心 ' + yMood.g + ' · 一般 ' + yMood.s + ' · 不开心 ' + yMood.b + ' · 难赚 ' + yMood.h

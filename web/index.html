@@ -207,19 +207,30 @@
     <div class="chap-head">
       <div class="chap-no">I</div>
       <div class="chap-t">
-        <h2>今日铸造</h2>
+        <div class="chap-ttl"><h2>今日铸造</h2><span class="lat">Today&#39;s Minting</span></div>
         <p class="lead">一天的班次被拆成计薪分钟，逐秒压印。午休时段停机，不计薪。</p>
       </div>
     </div>
 
-    <div class="grid g32">
-      <div class="card">
-        <div class="card-h"><h3>班次时间轴</h3><span class="k" id="tlRange">—</span></div>
-        <div class="tl" id="tl"></div>
-        <div class="tl-lg">
-          <span><i class="a"></i>已铸</span>
-          <span><i class="b"></i>计薪时段</span>
-          <span><i class="c"></i>午休（不计薪）</span>
+    <div class="grid g32" style="align-items:start">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-h"><h3>班次时间轴</h3><span class="k" id="tlRange">—</span></div>
+          <div class="tl" id="tl"></div>
+          <div class="tl-lg">
+            <span><i class="a"></i>已铸</span>
+            <span><i class="b"></i>计薪时段</span>
+            <span><i class="c"></i>午休（不计薪）</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <h3>今日已铸可兑换</h3>
+            <span class="k">Redeemable Today</span>
+          </div>
+          <div class="gsets" id="goalSets" role="group" aria-label="可兑换体系"></div>
+          <div class="goals blur" id="goals"></div>
         </div>
       </div>
 
@@ -246,15 +257,6 @@
         </div>
       </div>
     </div>
-
-    <div class="card" style="margin-top:16px">
-      <div class="card-h">
-        <h3>今日已铸可兑换</h3>
-        <span class="k">Redeemable Today</span>
-      </div>
-      <div class="gsets" id="goalSets" role="group" aria-label="可兑换体系"></div>
-      <div class="goals blur" id="goals"></div>
-    </div>
   </div>
 </section>
 
@@ -279,7 +281,7 @@
     <div class="chap-head">
       <div class="chap-no">II</div>
       <div class="chap-t">
-        <h2>金库</h2>
+        <div class="chap-ttl"><h2>金库</h2><span class="lat">The Vault</span></div>
         <p class="lead">本月已铸金额按面额堆成金条与散币，虚线是本月尚未铸出的份额。</p>
       </div>
     </div>
@@ -317,7 +319,7 @@
     <div class="chap-head">
       <div class="chap-no">III</div>
       <div class="chap-t">
-        <h2>薪酬解剖</h2>
+        <div class="chap-ttl"><h2>薪酬解剖</h2><span class="lat">Payroll Anatomy</span></div>
         <p class="lead">年薪月数（默认 15 薪）→ 12 个月 base 走累计预扣法、年终奖走全年一次性奖金单独计税 → 所选城市口径五险一金（个人部分）→ 到手。不含专项附加扣除。</p>
       </div>
     </div>
@@ -361,8 +363,12 @@
       </div>
     </div>
 
-    <div class="card" style="margin-top:16px">
-      <div class="card-h"><h3>全年逐月明细</h3><span class="k">Monthly Ledger</span></div>
+    <details class="card fold-card" style="margin-top:16px">
+      <summary>
+        <span class="fc-t">全年逐月明细</span>
+        <span class="k">Monthly Ledger</span>
+        <span class="fc-hint" id="taxTableHint">12 个月 · 展开查看</span>
+      </summary>
       <div class="tscroll">
         <table class="t blur" id="taxTable">
           <thead><tr>
@@ -372,7 +378,7 @@
           <tbody></tbody>
         </table>
       </div>
-    </div>
+    </details>
   </div>
 </section>
 
@@ -382,7 +388,7 @@
     <div class="chap-head">
       <div class="chap-no">IV</div>
       <div class="chap-t">
-        <h2>铸币日历</h2>
+        <div class="chap-ttl"><h2>铸币日历</h2><span class="lat">Minting Calendar</span></div>
         <p class="lead">按国务院办公厅当年放假通知渲染：法定节假日、调休放假、调休上班日各自成态；支持过去 31 天补录结算，完整记录保存在本机 localStorage，Cookie 仅作兼容。</p>
       </div>
     </div>
@@ -416,8 +422,13 @@
       <div class="sheet" id="sheet"></div>
     </div>
 
-    <div class="card" style="margin-top:20px">
-      <div class="card-h"><h3>年度铸造节奏</h3><span class="k" id="heatYear">—</span></div>
+    <details class="card fold-card" style="margin-top:20px">
+      <summary>
+        <span class="fc-t">年度铸造节奏</span>
+        <span class="k" id="heatYear">—</span>
+        <span class="fc-hint" id="yearHint">展开查看全年分布</span>
+      </summary>
+      <div class="fold-body">
       <div class="ybars" id="yearBars"></div>
       <div class="rule" style="margin:16px 0 12px"></div>
       <div class="grid g4" style="gap:12px">
@@ -433,7 +444,8 @@
         <span><em style="background:var(--engrave)"></em>心情好的天</span>
         <span><em style="background:var(--press)"></em>心情差的天</span>
       </div>
-    </div>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -443,7 +455,7 @@
     <div class="chap-head">
       <div class="chap-no">V</div>
       <div class="chap-t">
-        <h2>换算所</h2>
+        <div class="chap-ttl"><h2>换算所</h2><span class="lat">Exchange</span></div>
         <p class="lead">把时间换算成钱，再把钱换算成看得懂的东西。</p>
       </div>
     </div>
@@ -528,14 +540,19 @@
     <div class="chap-head">
       <div class="chap-no">VI</div>
       <div class="chap-t">
-        <h2>勋章厅</h2>
+        <div class="chap-ttl"><h2>勋章厅</h2><span class="lat">Medal Hall</span></div>
         <p class="lead">六枚勋章，按当日与本月的铸造状态即时判定，不写入历史成绩。</p>
       </div>
     </div>
     <div class="medals" id="medalWall"></div>
 
-    <div class="card" style="margin-top:20px">
-      <div class="card-h"><h3>战报卡</h3><span class="k">Daily Bulletin</span></div>
+    <details class="card fold-card" style="margin-top:20px">
+      <summary>
+        <span class="fc-t">战报卡</span>
+        <span class="k">Daily Bulletin</span>
+        <span class="fc-hint">把某一天压成可分享的券</span>
+      </summary>
+      <div class="fold-body">
       <div class="grid g23" style="align-items:start">
         <div>
           <p style="margin:0 0 12px;font-size:13px;color:var(--ink-2);line-height:1.8">
@@ -558,7 +575,8 @@
           <canvas id="cardCv" style="width:100%;border:1px solid var(--line);border-radius:3px"></canvas>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
   </div>
 </section>
 
@@ -568,7 +586,7 @@
     <div class="chap-head">
       <div class="chap-no">VII</div>
       <div class="chap-t">
-        <h2>口径与来源</h2>
+        <div class="chap-ttl"><h2>口径与来源</h2><span class="lat">Sources &amp; Method</span></div>
         <p class="lead">法定数字都能追到一手出处，默认收起，需要核对时展开。</p>
       </div>
     </div>

@@ -58,7 +58,7 @@
 
 菜单栏常驻今日进账，点开是完整账本。支持 macOS 13 及以上，Apple Silicon 与 Intel 通用。
 
-**安装**：从 [Releases](https://github.com/yinbro/salary-mint/releases/latest) 下载 `SalaryMint-1.1.0-macOS.zip`，解压后把「薪水铸币厂.app」拖进「应用程序」。
+**安装**：从 [Releases](https://github.com/yinbro/salary-mint/releases/latest) 下载 `SalaryMint-1.1.1-macOS.zip`，解压后把「薪水铸币厂.app」拖进「应用程序」。
 
 **首次打开**：应用没有做 Apple 公证（省开发者年费），系统会拦一次。右键点击应用选「打开」，或执行：
 
@@ -119,7 +119,7 @@ docs/screenshots/    README 用图
 
 ## 免责声明
 
-页面里的个税、社保、公积金、节假日口径按上海市规则整理，来源逐条标注在「VII 口径与来源」，仅供个人估算参考，**不构成税务、法律或劳动关系的意见**。实际金额以工资条与官方口径为准。
+页面里的个税、社保、公积金、节假日口径按上海 / 北京 / 深圳 / 杭州四城规则整理，来源逐条标注在「VII 口径与来源」，仅供个人估算参考，**不构成税务、法律或劳动关系的意见**。实际金额以工资条与官方口径为准。
 
 ## License
 
@@ -137,6 +137,6 @@ It ships as a zero-dependency static site and a macOS menu bar app. Everything s
 - **Download for macOS** (13+, universal binary): [Releases](https://github.com/yinbro/salary-mint/releases/latest). The app is ad-hoc signed only, so right-click → Open on first launch, or run `xattr -dr com.apple.quarantine /Applications/薪水铸币厂.app`.
 - **Build**: serve `web/` with any static server, or run `bash macos/build.sh` (requires Xcode Command Line Tools).
 
-Tax and social-insurance figures follow Shanghai rules and are sourced in-app under "VII 口径与来源"; they are estimates, not professional advice.
+Tax and social-insurance figures follow the rules of Shanghai, Beijing, Shenzhen and Hangzhou, and are sourced in-app under "VII 口径与来源"; they are estimates, not professional advice.
 
 MIT licensed.
