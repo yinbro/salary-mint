@@ -10,7 +10,7 @@ const $$ = s => Array.prototype.slice.call(document.querySelectorAll(s));
 const CFG_KEY = 'mintatl.cfg.v1';
 const OVR_KEY = 'mintatl.days.v1';
 const META_KEY = 'mintatl.meta.v4';
-const BUILD   = 'Edition IV · 月度账本 · 2026.10';
+const BUILD   = 'Edition V · 城市口径 · 2026.11';
 
 /* ---------- 默认配置 ----------
    班次默认按上海互联网常见口径：10:00 开工、12:00–14:00 午休、19:00 收工，
@@ -22,6 +22,7 @@ const DEF = {
   start:'10:00', end:'19:00', lunch:120, lunchAt:'12:00',
   week:[1,2,3,4,5], theme:'auto',
   siBase:0, hfBase:0, hfRate:0.05, taxStartMonth:1,
+  city:'sh', company:'',
   netMode:false, sound:false, sig:'MINT MASTER', unit:1000,
   goalSet:'life',
   goals: JSON.parse(JSON.stringify(GOAL_SETS[0].goals))
@@ -45,6 +46,9 @@ function migrateCfg(raw){
   if (hasRaw && raw.viewMode == null) out.viewMode = raw.bonusSpread === false ? 'actual' : 'annualized';
   out.annualMonths = 12 + Math.max(0, Number(out.bonusMonths)||0);
   out.bonusSpread = out.viewMode === 'annualized';
+  /* 城市口径：旧配置没有 city，按上海（原口径）补齐；公司预设同理置空。 */
+  if (!out.city || !CITY_PLANS[out.city]) out.city = 'sh';
+  if (!out.company || !companyById(out.company)) out.company = '';
   out.schemaVersion = SCHEMA_VERSION;
   return out;
 }
@@ -620,7 +624,8 @@ function renderPayroll(){
   const row = ty.rows[now.getMonth()];
   const ins = ty.ins;
   renderAnnual(ty);
-  $('#wfMonth').textContent = (now.getMonth()+1) + ' 月 · 上海口径';
+  const CPY = cityPlan(cfg.city);
+  $('#wfMonth').textContent = (now.getMonth()+1) + ' 月 · ' + CPY.name + '口径';
 
   const mx = Math.max(ty.gross, 1);
   const bar = (cls, v, from) =>
@@ -631,7 +636,9 @@ function renderPayroll(){
   const seg = [];
   seg.push(['税前月薪','gross', ty.gross, 0]);
   acc = ty.gross;
-  [['养老 8%', ins.pension], ['医疗 2%', ins.medical], ['失业 0.5%', ins.unemployment],
+  [['养老 '+Math.round(CPY.pension*100)+'%', ins.pension],
+   ['医疗 '+Math.round(CPY.medical*100)+'%'+(ins.medicalAdd?'+'+ins.medicalAdd+'元':''), ins.medical + (ins.medicalAdd||0)],
+   ['失业 '+(CPY.unemployment*100).toFixed(1).replace(/\.0$/,'')+'%', ins.unemployment],
    ['公积金 '+Math.round(ins.hfRate*100)+'%', ins.hf]].forEach(x => {
     acc -= x[1]; seg.push([x[0], 'cut', x[1], acc]);
   });
@@ -646,9 +653,10 @@ function renderPayroll(){
     </div>`).join('');
 
   $('#pSiBase').textContent = yuan0(ins.siBase);
-  $('#pSiHint').textContent = '上下限 ' + yuan0(SI_SH.baseMin) + '–' + yuan0(SI_SH.baseMax) + ' · ' + SI_SH.year + (now.getFullYear()>2026?' · 当前沿用 2026 参数':'');
+  $('#pSiHint').textContent = '上下限 ' + yuan0(CPY.siMin) + '–' + yuan0(CPY.siMax) + ' · ' + CPY.year + (now.getFullYear()>2026?' · 当前沿用 2026 参数':'');
   $('#pHfBase').textContent = yuan0(ins.hfBase) + ' / ' + Math.round(ins.hfRate*100) + '%';
-  $('#pHfHint').textContent = '上下限 ' + yuan0(SI_SH.hfBaseMin) + '–' + yuan0(SI_SH.hfBaseMax) + ' · 个人 5%~7%';
+  $('#pHfHint').textContent = '上下限 ' + yuan0(CPY.hfMin) + '–' + yuan0(CPY.hfMax) + ' · 个人 ' +
+    Math.round(CPY.hfRateMin*100) + '%~' + Math.round(CPY.hfRateMax*100) + '%';
 
   /* 曲线 */
   drawTaxSvg(ty, now.getMonth()+1);
@@ -738,7 +746,7 @@ function renderAnnual(ty){
       : '距下一单独计税档还差 ' + yuan(bn.apart.distance,2));
     $('#anNote').textContent =
       '两种方案均已计算，预计全年到手采用税额较低的「' + (bn.better==='apart'?'单独计税':'并入综合所得') + '」。' +
-      threshold + '。2026 上海社保、公积金参数；2027 年及以后若尚未更新，将沿用并弱提示。' +
+      threshold + '。' + cityPlan(cfg.city).name + ' 2026 年度社保、公积金参数；2027 年及以后若尚未更新，将沿用并弱提示。' +
       (bn.gap ? '两方案相差 ' + yuan0(bn.gap) + '。' : '两方案税额相同。');
   } else {
     $('#anApart').textContent = '—';
@@ -1377,14 +1385,47 @@ function openReport(){renderReport();$('#reportModal').classList.add('on');}
 
 function initWizard(){
   cfg.onboardingComplete=false; persist();
-  let step=1,factor=1,shift='flex',view='annualized';
+  let step=1,factor=1,shift='flex',view='annualized',company='',city='sh';
   const show=()=>{$$('.wiz-step').forEach(x=>x.classList.toggle('on',Number(x.dataset.step)===step));$('#wizCount').textContent=step+' / 3';$('#wBack').hidden=step===1;$('#wNext').textContent=step===3?'完成并进入首页':'下一步';};
   $('#wFactor').onclick=e=>{const b=e.target.closest('button');if(!b)return;$$('#wFactor button').forEach(x=>x.classList.toggle('on',x===b));$('#wFactorCustom').hidden=b.dataset.v!=='custom';factor=b.dataset.v==='custom'?Number($('#wFactorCustom').value)||1:Number(b.dataset.v);};
   $('#wFactorCustom').oninput=()=>factor=Math.max(0,Number($('#wFactorCustom').value)||0);
-  $('#wShift').onclick=e=>{const b=e.target.closest('button');if(!b)return;shift=b.dataset.v;$$('#wShift button').forEach(x=>x.classList.toggle('on',x===b));$('#wShiftCustom').hidden=shift!=='custom';};
+  /* 公司卡片：选中即带出城市口径与作息；「自定义」保留手填 */
+  $('#wCompany').innerHTML = COMPANIES.map(c =>
+    `<button type="button" class="co" data-v="${c.id}">
+      <span class="co-logo">${MASCOTS[c.id]||''}</span>
+      <b>${c.name}</b>
+      <span class="co-meta">${c.tag}</span>
+      <span class="co-city">${cityPlan(c.city).name}口径 · 公积金 ${Math.round(c.hfRate*100)}%</span>
+    </button>`).join('') +
+    `<button type="button" class="co co-custom" data-v="custom">
+      <span class="co-logo co-logo-custom">✎</span>
+      <b>自定义</b><span class="co-meta">自己填作息</span><span class="co-city">按上海口径</span>
+    </button>`;
+  $('#wCompany').onclick=e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    company=b.dataset.v; shift=company;
+    $$('#wCompany button').forEach(x=>x.classList.toggle('on',x===b));
+    $('#wShiftCustom').style.display = company==='custom' ? 'flex' : 'none';
+    const c=companyById(company);
+    if(c){
+      city=c.city;
+      $('#wCompanyNote').textContent =
+        `${c.name}：${c.start}–${c.end} · 午休 ${c.lunch} 分钟 · 年薪 ${c.annualMonths} 个月 · ${cityPlan(c.city).name}社保公积金口径。社区参考值，可在设置里改。`;
+    }else{
+      city='sh';
+      $('#wCompanyNote').textContent='自定义班次按上海社保公积金口径估算，可在设置里改城市。';
+    }
+  };
   $('#wView').onclick=e=>{const b=e.target.closest('button');if(!b)return;view=b.dataset.v;$$('#wView button').forEach(x=>x.classList.toggle('on',x===b));};
   $('#wBack').onclick=()=>{step=Math.max(1,step-1);show();};
-  $('#wNext').onclick=()=>{if(step<3){step++;show();return;}const ann=Math.max(12,Math.min(24,Number($('#wAnnual').value)||12));const next=Object.assign({},DEF,{onboardingComplete:true,monthly:Math.max(0,Number($('#wMonthly').value)||0),bonusMonths:ann-12,annualMonths:ann,bonusFactor:factor,viewMode:view,bonusSpread:view==='annualized'});if(shift==='standard')Object.assign(next,{start:'09:00',end:'18:00',lunchAt:'12:00',lunch:60});if(shift==='custom')Object.assign(next,{start:$('#wStart').value,end:$('#wEnd').value,lunchAt:$('#wLunchAt').value,lunch:Math.max(0,Number($('#wLunch').value)||0)});applyCfg(next,true);$('#wizard').hidden=true;toast('初始化完成');};
+  $('#wNext').onclick=()=>{if(step<3){step++;show();return;}
+    const preset=companyById(company);
+    const ann=preset?preset.annualMonths:Math.max(12,Math.min(24,Number($('#wAnnual').value)||12));
+    if(preset) $('#wAnnual').value=ann;
+    const next=Object.assign({},DEF,{onboardingComplete:true,city:city,company:preset?preset.id:'',monthly:Math.max(0,Number($('#wMonthly').value)||0),bonusMonths:ann-12,annualMonths:ann,bonusFactor:factor,viewMode:view,bonusSpread:view==='annualized'});
+    if(preset)Object.assign(next,{start:preset.start,end:preset.end,lunchAt:preset.lunchAt,lunch:preset.lunch,hfRate:preset.hfRate});
+    if(shift==='custom')Object.assign(next,{start:$('#wStart').value,end:$('#wEnd').value,lunchAt:$('#wLunchAt').value,lunch:Math.max(0,Number($('#wLunch').value)||0)});
+    applyCfg(next,true);$('#wizard').hidden=true;toast('初始化完成');};
   show();$('#wizard').hidden=false;
 }
 
@@ -1410,6 +1451,8 @@ function fillForm(){
   $$('#segMode button').forEach(b => b.classList.toggle('on', b.dataset.v === d.mode));
   $('#paneMonth').hidden = d.mode !== 'month';
   $('#paneHour').hidden  = d.mode !== 'hour';
+  renderCompanyPick();
+  renderCityPick();
   $('#fMonthly').value  = d.monthly;
   $('#fWorkDays').value = d.workDays;
   $('#fAnnual').value   = d.annualMonths;
@@ -1427,6 +1470,7 @@ function fillForm(){
   $('#fLunch').value    = d.lunch;
   $('#fSiBase').value   = d.siBase || '';
   $('#fHfBase').value   = d.hfBase || '';
+  fillHfRateOptions();
   $('#fHfRate').value   = String(d.hfRate);
   $('#fTaxStart').value = String(d.taxStartMonth);
   $('#fSig').value      = d.sig || '';
@@ -1436,7 +1480,16 @@ function fillForm(){
   $('#fSound').classList.toggle('on', !!d.sound);
   $('#fSound').setAttribute('aria-checked', d.sound ? 'true':'false');
   $$('#segTheme button').forEach(b => b.classList.toggle('on', b.dataset.v === d.theme));
-  $('#siRange').textContent = yuan0(SI_SH.baseMin)+'–'+yuan0(SI_SH.baseMax);
+  const CP = cityPlan(d.city);
+  $('#siRange').textContent = yuan0(CP.siMin)+'–'+yuan0(CP.siMax);
+  $('#dtCity').textContent = CP.name;
+  $('#fCityHint').textContent = CP.year + ' · 社保 ' + yuan0(CP.siMin) + '–' + yuan0(CP.siMax) +
+    ' · 公积金 ' + yuan0(CP.hfMin) + '–' + yuan0(CP.hfMax);
+  const add = Number(CP.medicalAdd) || 0;
+  $('#fRateHint').textContent = '个人费率：养老 8% · 医疗 2%' + (add ? ' + ' + add + ' 元' : '') +
+    ' · 失业 ' + (CP.unemployment * 100).toFixed(1).replace(/\.0$/, '') + '%（' + CP.name + '口径，合计 ' +
+    (CP.pension * 100 + CP.medical * 100 + CP.unemployment * 100).toFixed(1).replace(/\.0$/, '') + '%' +
+    (add ? ' + ' + add + ' 元' : '') + '）。不含专项附加扣除。';
   const wk = $('#wkPick');
   const NM = ['一','二','三','四','五','六','日'];
   wk.innerHTML = NM.map((n,i)=>{
@@ -1445,6 +1498,39 @@ function fillForm(){
   }).join('');
   renderGoalEdit();
 }
+/* 设置抽屉：公司预设与城市口径 */
+function renderCompanyPick(){
+  const box = $('#fCompany'); if (!box) return;
+  const cur = draft.company || '';
+  box.innerHTML = COMPANIES.map(c =>
+    `<button type="button" class="co-mini-btn${cur===c.id?' on':''}" data-c="${c.id}" title="${c.name}">
+      <span class="co-mini-logo">${MASCOTS[c.id]||''}</span><span>${c.short}</span>
+    </button>`).join('') +
+    `<button type="button" class="co-mini-btn co-mini-none${cur===''?' on':''}" data-c="">无</button>`;
+  const hint = $('#fCompanyHint');
+  const c = companyById(cur);
+  if (hint) hint.textContent = c
+    ? `${c.name}：${c.start}–${c.end} · 午休 ${c.lunch} 分钟 · 年薪 ${c.annualMonths} 个月。社区参考值，可继续微调。`
+    : '选一个会把作息、年薪月数与城市口径一起带过来，之后仍可逐项改。';
+}
+function renderCityPick(){
+  const box = $('#segCity'); if (!box) return;
+  box.innerHTML = cityList().map(p =>
+    `<button type="button" data-city="${p.id}" class="${draft.city===p.id?'on':''}">${p.name}</button>`).join('');
+}
+/** 公积金比例下拉：按当前城市的允许区间重填 */
+function fillHfRateOptions(){
+  const sel = $('#fHfRate'); if (!sel) return;
+  const CP = cityPlan(draft.city);
+  const opts = hfRateOptions(CP);
+  const cur = Math.round((Number(draft.hfRate) || CP.hfRateMin) * 100);
+  sel.innerHTML = opts.map(r =>
+    `<option value="${(r/100).toFixed(2)}">${r}%</option>`).join('');
+  const nearest = opts.reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a, opts[0]);
+  sel.value = (nearest / 100).toFixed(2);
+  draft.hfRate = nearest / 100;
+}
+
 /* 年薪月数：常见档位快选 + 年终奖回显 */
 function renderAnnualPick(){
   const seg = $('#segAnnual');
@@ -1493,6 +1579,8 @@ function readForm(){
   d.siBase   = Math.max(0, Number($('#fSiBase').value)||0);
   d.hfBase   = Math.max(0, Number($('#fHfBase').value)||0);
   d.hfRate   = Number($('#fHfRate').value)||0.05;
+  d.city     = draft.city;
+  d.company  = draft.company;
   d.taxStartMonth = Number($('#fTaxStart').value)||1;
   d.sig      = $('#fSig').value.trim();
   d.unit     = Number($('#fUnit').value)||1000;
@@ -1516,6 +1604,7 @@ function markDirty(){
 function applyCfg(next, silent){
   cfg = next; M = PR.shift(cfg);
   applyTheme(); Flap.setSound(cfg.sound);
+  renderNoteCompany();
   persist();
   boardMain.sig = '';
   lastDayKey = ''; lastMonthKey = '';
@@ -1564,6 +1653,32 @@ $('#btnSave').onclick   = () => { readForm(); applyCfg(JSON.parse(JSON.stringify
 $('#segMode').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
   draft.mode = b.dataset.v; fillForm();
+};
+/* 公司预设：一次带出作息、年薪月数、公积金比例与城市口径 */
+$('#fCompany').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const id = b.dataset.c || '';
+  draft.company = id;
+  const c = companyById(id);
+  if (c){
+    draft.city = c.city;
+    draft.start = c.start; draft.end = c.end;
+    draft.lunchAt = c.lunchAt; draft.lunch = c.lunch;
+    draft.bonusMonths = c.annualMonths - 12;
+    draft.annualMonths = c.annualMonths;
+    draft.hfRate = c.hfRate;
+  }
+  fillForm();
+  markDirty();
+};
+$('#segCity').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  draft.city = b.dataset.city;
+  /* 换城市时把比例收进该城市允许区间，避免越界值被静默截断 */
+  const CP = cityPlan(draft.city);
+  draft.hfRate = Math.min(CP.hfRateMax, Math.max(CP.hfRateMin, Number(draft.hfRate) || CP.hfRateMin));
+  fillForm();
+  markDirty();
 };
 $('#segTheme').onclick = e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -1831,6 +1946,7 @@ function boot(){
   $('#srcGroups').textContent = SOURCES.map(s=>s.g).filter((g,i,a)=>a.indexOf(g)===i).join(' · ');
   $('#ftBuild').textContent = BUILD;
   $('#sigName').textContent = cfg.sig || 'MINT MASTER';
+  renderNoteCompany();
 
   buildEngraving();
   applyTheme();
@@ -1854,6 +1970,16 @@ function boot(){
   if (firstRun){
     setTimeout(initWizard, 180);
   }
+}
+
+/** 券面左上角：当前公司吉祥物 + 城市口径标识（未选公司则隐藏） */
+function renderNoteCompany(){
+  const box = $('#noteCo'); if (!box) return;
+  const c = companyById(cfg.company);
+  if (!c){ box.hidden = true; box.innerHTML = ''; return; }
+  box.hidden = false;
+  /* 城市以实际生效的 cfg.city 为准：用户可能在设置里把口径改到别的城市 */
+  box.innerHTML = (MASCOTS[c.id] || '') + '<span>' + c.name + ' · ' + cityPlan(cfg.city).name + '口径</span>';
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);

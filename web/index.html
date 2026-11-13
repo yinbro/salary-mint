@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>薪水铸币厂 · 钞券版</title>
-<meta name="description" content="把上班时间铸成钞券：实时进账、上海口径税后测算、法定节假日与调休工资日历、金库与换算所。">
+<meta name="description" content="把上班时间铸成钞券：实时进账、上海/北京/深圳/杭州口径税后测算、内置大厂作息预设、法定节假日与调休工资日历、金库与换算所。">
 <meta name="color-scheme" content="light dark">
 <link rel="stylesheet" href="assets/base.css">
 <link rel="stylesheet" href="assets/note.css">
@@ -36,9 +36,10 @@
       <div class="field"><label>奖金系数</label><div class="seg wrapseg" id="wFactor"><button data-v="0">0</button><button data-v="0.5">0.5</button><button data-v="0.8">0.8</button><button data-v="1" class="on">1</button><button data-v="1.2">1.2</button><button data-v="custom">自定义</button></div><input id="wFactorCustom" type="number" min="0" step="0.1" value="1" hidden></div>
     </div>
     <div class="wiz-step" data-step="2">
-      <h2>选择班次</h2><p>预设可继续在设置中微调。</p>
-      <div class="preset-grid" id="wShift"><button data-v="flex" class="on"><b>弹性班次</b><span>10:00–19:00 · 午休 2 小时</span></button><button data-v="standard"><b>标准班次</b><span>09:00–18:00 · 午休 1 小时</span></button><button data-v="custom"><b>自定义</b><span>现在填写</span></button></div>
-      <div class="frow" id="wShiftCustom" hidden><div class="field"><label>开工</label><input id="wStart" type="time" value="10:00"></div><div class="field"><label>收工</label><input id="wEnd" type="time" value="19:00"></div><div class="field"><label>午休开始</label><input id="wLunchAt" type="time" value="12:00"></div><div class="field"><label>午休分钟</label><input id="wLunch" type="number" value="120" min="0"></div></div>
+      <h2>选公司，或自己填</h2><p>内置公司会一并带出作息、社保与公积金口径，选中后仍可微调。</p>
+      <div class="co-grid" id="wCompany"></div>
+      <div class="co-note" id="wCompanyNote">这些作息与薪酬结构是社区常见说法，非公司官方制度。</div>
+      <div class="frow" id="wShiftCustom" style="display:none"><div class="field"><label>开工</label><input id="wStart" type="time" value="10:00"></div><div class="field"><label>收工</label><input id="wEnd" type="time" value="19:00"></div><div class="field"><label>午休开始</label><input id="wLunchAt" type="time" value="12:00"></div><div class="field"><label>午休分钟</label><input id="wLunch" type="number" value="120" min="0"></div></div>
     </div>
     <div class="wiz-step" data-step="3">
       <h2>选择默认视角</h2><p>随时可以在今日金额旁切换。</p>
@@ -123,6 +124,7 @@
                 <span>
                   <h1>薪水铸币厂</h1>
                   <span class="en">Salary Mint Atelier</span>
+                  <span class="co-badge" id="noteCo" hidden></span>
                 </span>
               </div>
             </div>
@@ -316,7 +318,7 @@
       <div class="chap-no">III</div>
       <div class="chap-t">
         <h2>薪酬解剖</h2>
-        <p class="lead">年薪月数（默认 15 薪）→ 12 个月 base 走累计预扣法、年终奖走全年一次性奖金单独计税 → 上海口径五险一金（个人部分）→ 到手。不含专项附加扣除。</p>
+        <p class="lead">年薪月数（默认 15 薪）→ 12 个月 base 走累计预扣法、年终奖走全年一次性奖金单独计税 → 所选城市口径五险一金（个人部分）→ 到手。不含专项附加扣除。</p>
       </div>
     </div>
 
@@ -573,7 +575,7 @@
 
     <div class="card">
       <p class="fold-sum">
-        节假日与调休按国务院办公厅通知，社保 · 公积金 · 个税 · 加班倍率按上海与全国现行规定；午休不计薪，税后测算不含专项附加扣除。
+        节假日与调休按国务院办公厅通知；社保与公积金按所选城市的 2026 年度官方通告，个税 · 加班倍率按全国现行规定；午休不计薪，税后测算不含专项附加扣除。
       </p>
       <details class="fold">
         <summary><span class="ft">数据来源</span><span class="fn"><b id="srcN">—</b> 条<span class="fg"> · <span id="srcGroups">—</span></span></span></summary>
@@ -664,7 +666,14 @@
 
     <div class="dsec">
       <div class="dt">班次</div>
-      <p class="dhint">默认 10:00–19:00、午休 12:00–14:00（上海常见口径），午休不计薪，每日计薪 7 小时。</p>
+      <div class="field"><label>公司预设（可选）</label><div class="co-mini" id="fCompany"></div>
+        <span class="hint" id="fCompanyHint">选一个会把作息、年薪月数与城市口径一起带过来，之后仍可逐项改。</span>
+      </div>
+      <div class="field"><label>社保 / 公积金口径</label>
+        <div class="seg wrapseg" id="segCity"></div>
+        <span class="hint" id="fCityHint">—</span>
+      </div>
+      <p class="dhint">午休不计薪：日薪按「班次时长 − 午休时长」摊到每分钟。</p>
       <div class="frow">
         <div class="field"><label>开工</label><input type="time" id="fStart"></div>
         <div class="field"><label>收工</label><input type="time" id="fEnd"></div>
@@ -680,7 +689,7 @@
     </div>
 
     <div class="dsec">
-      <div class="dt">税后测算 · 上海口径（2026 参数）</div>
+      <div class="dt">税后测算 · <span id="dtCity">上海</span>口径（2026 参数）</div>
       <div class="sw">
         <span class="swl">券面按到手金额显示<i>用当月到手/税前之比折算今日已铸</i></span>
         <button class="tog" id="fNetMode" role="switch" aria-checked="false"></button>
@@ -700,7 +709,7 @@
           <span class="hint">影响累计预扣起点</span>
         </div>
       </div>
-      <span class="hint">个人费率固定：养老 8% · 医疗 2% · 失业 0.5%（上海口径，合计 10.5%）。不含专项附加扣除。</span>
+      <span class="hint" id="fRateHint">个人费率：养老 8% · 医疗 2% · 失业 0.5%（上海口径，合计 10.5%）。不含专项附加扣除。</span>
     </div>
 
     <div class="dsec">
@@ -795,6 +804,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="assets/data.js"></script>
+<script src="assets/companies.js"></script>
 <script src="assets/payroll.js"></script>
 <script src="assets/engrave.js"></script>
 <script src="assets/flap.js"></script>

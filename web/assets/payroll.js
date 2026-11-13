@@ -208,25 +208,32 @@ const PR = (() => {
     return { tax: Math.max(0, bonus * b.rate - b.quick), rate:b.rate, quick:b.quick, per, next, distance };
   }
 
-  /** 单月五险一金（上海口径，个人部分） */
+  /** 单月五险一金（个人部分）· 口径按 cfg.city 取，缺省上海 */
   function insurance(gross, cfg){
-    const S = SI_SH;
-    const siBase = clamp(Number(cfg.siBase) > 0 ? Number(cfg.siBase) : gross, S.baseMin, S.baseMax);
-    const hfBase = clamp(Number(cfg.hfBase) > 0 ? Number(cfg.hfBase) : gross, S.hfBaseMin, S.hfBaseMax);
-    const rate   = clamp(Number(cfg.hfRate) || S.hfRateMin, S.hfRateMin, S.hfRateMax);
+    const S = typeof cityPlan === 'function' ? cityPlan(cfg.city) : SI_SH;
+    const siMin = S.siMin != null ? S.siMin : S.baseMin;
+    const siMax = S.siMax != null ? S.siMax : S.baseMax;
+    const hfMin = S.hfMin != null ? S.hfMin : S.hfBaseMin;
+    const hfMax = S.hfMax != null ? S.hfMax : S.hfBaseMax;
+    const hfRateMin = S.hfRateMin != null ? S.hfRateMin : SI_SH.hfRateMin;
+    const hfRateMax = S.hfRateMax != null ? S.hfRateMax : SI_SH.hfRateMax;
+    const siBase = clamp(Number(cfg.siBase) > 0 ? Number(cfg.siBase) : gross, siMin, siMax);
+    const hfBase = clamp(Number(cfg.hfBase) > 0 ? Number(cfg.hfBase) : gross, hfMin, hfMax);
+    const rate   = clamp(Number(cfg.hfRate) || hfRateMin, hfRateMin, hfRateMax);
     const pension      = siBase * S.pension;
     const medical      = siBase * S.medical;
     const unemployment = siBase * S.unemployment;
+    const medicalAdd   = Number(S.medicalAdd) || 0;
     const hf           = hfBase * rate;
-    return { siBase, hfBase, hfRate:rate, pension, medical, unemployment,
-             si: pension + medical + unemployment, hf,
-             total: pension + medical + unemployment + hf };
+    return { siBase, hfBase, hfRate:rate, pension, medical, unemployment, medicalAdd,
+             si: pension + medical + unemployment + medicalAdd, hf,
+             total: pension + medical + unemployment + medicalAdd + hf };
   }
 
   /** 全年 12 个月累计预扣推演（假设月薪不变）· 带记忆化 */
   let _tyKey = '', _tyVal = null;
   function taxYear(cfg){
-    const key = [cfg.mode, cfg.monthly, cfg.hourly, cfg.workDays, cfg.start, cfg.end,
+    const key = [cfg.city, cfg.mode, cfg.monthly, cfg.hourly, cfg.workDays, cfg.start, cfg.end,
                  cfg.lunch, cfg.lunchAt, cfg.siBase, cfg.hfBase, cfg.hfRate, cfg.taxStartMonth,
                  cfg.annualMonths, cfg.bonusMonths, cfg.bonusFactor, cfg.viewMode, cfg.bonusMonth].join('|');
     if (key === _tyKey && _tyVal) return _tyVal;
