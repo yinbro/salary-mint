@@ -22,6 +22,12 @@
 
 日铸 / 夜铸两套主题，跟随时间自动切换，也可以手动锁定。
 
+## 界面
+
+| 日铸 | 夜铸 |
+|---|---|
+| ![日铸](docs/screenshots/web-day.jpg) | ![夜铸](docs/screenshots/web-night.jpg) |
+
 ## 在线使用
 
 打开 [yinbro.github.io/salary-mint](https://yinbro.github.io/salary-mint/)，第一次会走三步初始化（薪酬结构 → 班次 → 默认视角）。数据存在浏览器 localStorage，换设备或清缓存会丢，重要配置可用设置里的「导出配置」备份。
@@ -39,6 +45,8 @@ xattr -dr com.apple.quarantine /Applications/薪水铸币厂.app
 ```
 
 **日常操作**：左键点菜单栏金额开关面板；右键有「打开完整账本 / 立即刷新 / 重新载入页面 / 退出」。
+
+![菜单栏面板](docs/screenshots/menubar-panel.png)
 
 **从旧版本迁移**：早期版本用的 Bundle ID 是 `net.lucas.salarymint`，数据目录在 `~/Library/WebKit/net.lucas.salarymint`。新版改成 `com.salarymint.app`，首次启动是空的。迁移方式：旧版「设置 → 导出配置」拿到 JSON，新版「设置 → 导入配置」读回去；旧数据目录确认不再需要后可以自行删除。
 
